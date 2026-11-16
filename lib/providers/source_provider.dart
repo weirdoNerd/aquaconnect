@@ -9,9 +9,13 @@ import '../utils/geo.dart';
 class SourceProvider extends ChangeNotifier {
   final SourceService _service;
   final LocationService _location;
+  final DateTime Function() _clock;
 
   // Langganan data dibuka oleh [syncUser], bukan oleh konstruktor.
   final List<StreamSubscription<SourceBatch>> _subs = [];
+  Timer? _freshnessTimer;
+  Map<String, Freshness> _freshnessSnapshot = {};
+
   bool _synced = false;
   String? _uid;
   bool _isAdmin = false;
@@ -26,6 +30,8 @@ class SourceProvider extends ChangeNotifier {
 
   String _query = '';
   SourceType? _type;
+  bool _showUnconfirmed = false;
+  int _hiddenUnconfirmedCount = 0;
 
   LatLng? _user;
   bool _sortNearest = false;
@@ -33,7 +39,11 @@ class SourceProvider extends ChangeNotifier {
 
   List<WaterSource>? _cache; // memoisasi hasil items
 
-  SourceProvider(this._service, this._location);
+  SourceProvider(
+    this._service,
+    this._location, {
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   /// Memilih aliran data menurut peran dan membukanya ulang HANYA bila tupel
   /// (uid, isAdmin, isProvider) berubah:
@@ -57,12 +67,40 @@ class SourceProvider extends ChangeNotifier {
     _cancelSubs();
     _all = [];
     _byId = {};
+    _freshnessSnapshot = {};
     _skipped = 0;
     _fromCache = false;
     _loading = true;
     _error = null;
+    _showUnconfirmed = false;
+    _hiddenUnconfirmedCount = 0;
     _cache = null;
+    _startTimer();
     _open();
+  }
+
+  void _startTimer() {
+    _freshnessTimer ??=
+        Timer.periodic(const Duration(minutes: 1), (_) => _onFreshnessTick());
+  }
+
+  void _onFreshnessTick() {
+    if (_all.isEmpty) return;
+    final now = _clock();
+    var changed = false;
+    final next = <String, Freshness>{};
+    for (final s in _all) {
+      final f = s.freshness(now);
+      next[s.id] = f;
+      if (_freshnessSnapshot[s.id] != f) {
+        changed = true;
+      }
+    }
+    if (changed) {
+      _freshnessSnapshot = next;
+      _cache = null;
+      notifyListeners();
+    }
   }
 
   void _cancelSubs() {
@@ -121,6 +159,8 @@ class SourceProvider extends ChangeNotifier {
     }
     _all = merged.values.toList();
     _byId = merged;
+    final now = _clock();
+    _freshnessSnapshot = {for (final s in _all) s.id: s.freshness(now)};
     _skipped = skipped;
     _fromCache = cache;
     _loading = false;
@@ -158,25 +198,56 @@ class SourceProvider extends ChangeNotifier {
 
   String get query => _query;
   SourceType? get selectedType => _type;
+  bool get showUnconfirmed => _showUnconfirmed;
   LatLng? get userLocation => _user;
   bool get sortNearest => _sortNearest && _user != null;
   bool get locating => _locating;
+
+  Freshness freshnessOf(WaterSource s) => s.freshness(_clock());
+  String? staleLabelOf(WaterSource s) => s.staleLabelAt(_clock());
+
+  /// Jumlah sumber aktif yang disembunyikan karena kedaluwarsa & berpemilik.
+  int get hiddenUnconfirmedCount {
+    items;
+    return _hiddenUnconfirmedCount;
+  }
 
   /// Daftar untuk warga: hanya sumber aktif, sudah difilter dan diurutkan.
   List<WaterSource> get items => _cache ??= _compute();
 
   List<WaterSource> _compute() {
+    final now = _clock();
     final q = _query.trim().toLowerCase();
-    final list = _all.where((s) {
-      if (!s.isActive) return false;
-      if (_type != null && s.type != _type) return false;
-      return q.isEmpty ||
-          s.name.toLowerCase().contains(q) ||
-          s.address.toLowerCase().contains(q);
-    }).toList();
+    var hidden = 0;
+    final list = <WaterSource>[];
+    for (final s in _all) {
+      if (!s.isActive) continue;
+      if (_type != null && s.type != _type) continue;
+      if (q.isNotEmpty &&
+          !s.name.toLowerCase().contains(q) &&
+          !s.address.toLowerCase().contains(q)) {
+        continue;
+      }
+      // Sumber berpemilik yang kedaluwarsa disembunyikan untuk non-admin kecuali
+      // sakelar aktif. Sumber kelolaan admin hanya diberi label.
+      if (!_isAdmin &&
+          !_showUnconfirmed &&
+          s.ownerId != null &&
+          s.freshness(now) == Freshness.expired) {
+        hidden++;
+        continue;
+      }
+      list.add(s);
+    }
+    _hiddenUnconfirmedCount = hidden;
 
     if (sortNearest) {
-      list.sort((a, b) => distanceTo(a)!.compareTo(distanceTo(b)!));
+      list.sort((a, b) {
+        final aDegraded = a.freshness(now) != Freshness.fresh ? 1 : 0;
+        final bDegraded = b.freshness(now) != Freshness.fresh ? 1 : 0;
+        if (aDegraded != bDegraded) return aDegraded.compareTo(bDegraded);
+        return distanceTo(a)!.compareTo(distanceTo(b)!);
+      });
     } else {
       list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     }
@@ -193,6 +264,13 @@ class SourceProvider extends ChangeNotifier {
 
   void setType(SourceType? t) {
     _type = t;
+    _cache = null;
+    notifyListeners();
+  }
+
+  void setShowUnconfirmed(bool value) {
+    if (_showUnconfirmed == value) return;
+    _showUnconfirmed = value;
     _cache = null;
     notifyListeners();
   }
@@ -274,6 +352,8 @@ class SourceProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _freshnessTimer?.cancel();
+    _freshnessTimer = null;
     _cancelSubs();
     super.dispose();
   }

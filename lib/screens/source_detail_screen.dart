@@ -73,6 +73,14 @@ class SourceDetailScreen extends StatelessWidget {
       final s = p.byId(sourceId);
       return s == null ? null : p.distanceLabel(s);
     });
+    final freshness = context.select<SourceProvider, Freshness?>((p) {
+      final s = p.byId(sourceId);
+      return s == null ? null : p.freshnessOf(s);
+    });
+    final stale = context.select<SourceProvider, String?>((p) {
+      final s = p.byId(sourceId);
+      return s == null ? null : p.staleLabelOf(s);
+    });
 
     if (source == null || (!source.isActive && !isAdmin)) {
       return Scaffold(
@@ -81,6 +89,7 @@ class SourceDetailScreen extends StatelessWidget {
       );
     }
 
+    final isDegraded = (freshness ?? source.freshness()) != Freshness.fresh;
     final fmt = DateFormat('d MMM yyyy, HH:mm', 'id_ID');
     final updated = source.updatedAt == null
         ? 'Belum pernah diperbarui'
@@ -88,7 +97,14 @@ class SourceDetailScreen extends StatelessWidget {
     final verified = source.verifiedAt == null
         ? 'Belum pernah dikonfirmasi'
         : fmt.format(source.verifiedAt!);
-    final stale = source.staleLabel;
+    final confirmedText = source.verifiedAt == null
+        ? 'Belum pernah dikonfirmasi'
+        : switch (source.verifiedBy) {
+            VerifiedBy.provider => 'Dikonfirmasi oleh penyedia $verified',
+            VerifiedBy.admin => 'Dikonfirmasi oleh admin $verified',
+            null => verified,
+          };
+    final ownerName = source.ownerName?.trim() ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detail Sumber Air')),
@@ -138,23 +154,66 @@ class SourceDetailScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
-            child: AvailabilityBadge(availability: source.availability),
+            child: AvailabilityBadge(
+              availability: source.availability,
+              stale: isDegraded,
+            ),
           ),
           if (stale != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(stale,
-                  style: TextStyle(
-                      color: Colors.orange.shade900, fontWeight: FontWeight.w600)),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule, size: 16, color: Colors.orange.shade900),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      stale,
+                      style: TextStyle(
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (isDegraded)
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                border: Border.all(color: Colors.orange.shade800),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18, color: Colors.orange.shade900),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Status mungkin sudah tidak benar. Hubungi pengelola bila perlu.',
+                    ),
+                  ),
+                ],
+              ),
             ),
           const SizedBox(height: 16),
+          if (source.ownerId != null && ownerName.isNotEmpty)
+            _row(
+              Icons.storefront_outlined,
+              'Pengelola',
+              'Dikelola oleh $ownerName',
+            ),
           _row(Icons.category, 'Jenis', source.type.label),
           _row(Icons.place, 'Alamat', source.address),
           _row(Icons.schedule, 'Jam layanan', source.openingHours),
           _row(Icons.info_outline, 'Penggunaan', source.intendedUse),
           if (distance != null)
             _row(Icons.near_me, 'Jarak', '$distance dari lokasimu'),
-          _row(Icons.verified_outlined, 'Dikonfirmasi', verified),
+          _row(Icons.verified_outlined, 'Dikonfirmasi', confirmedText),
           _row(Icons.update, 'Diperbarui', updated),
           const SizedBox(height: 8),
           const Text(

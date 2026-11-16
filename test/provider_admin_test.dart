@@ -240,11 +240,11 @@ void main() async {
       await tester.pumpWidget(MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider(_StubAuth(adminUser))),
-          ChangeNotifierProvider.value(value: sp),
+          ChangeNotifierProvider(create: (_) => sp),
           ChangeNotifierProvider(
               create: (_) => AdminProvider(MockReportService(sources))
                 ..syncUser(adminUser.uid)),
-          ChangeNotifierProvider.value(value: pa),
+          ChangeNotifierProvider(create: (_) => pa),
         ],
         child: const MaterialApp(home: AdminScreen()),
       ));

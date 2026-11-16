@@ -20,7 +20,8 @@ dikerjakan, penyimpangan dari dokumen sumber beserta alasannya, dan apa yang men
 | S6 Tinjauan pengajuan penyedia (sisi admin) | selesai & teruji (mock/widget) | `ProviderProfile.role` (`FirestoreProviderService.fetchProviders` membaca `m['role']`), `ProviderAdminProvider` (`appProviders`), tab ketiga `Penyedia (n)` di `AdminScreen` (`ProviderAdminTab`: tinjau pengajuan, putus kemitraan, aktifkan kembali, sembunyikan aksi pada `isAdmin`), serta `test/provider_admin_test.dart`. `flutter analyze` & `flutter test` lulus; Firebase/emulator sungguhan belum dijalankan. |
 | S7 Unggah/edit sumber penyedia | ditunda | Bergantung pada S6/S8. |
 | S8 Sumber Saya | selesai & teruji (mock/widget) | `MySourcesProvider` (busy/galat per sumber, `confirmAll`, `closeAllOwned`), `MySourcesScreen` (aksi hanya pada `published`, tutup dengan alasan & konfirmasi permanen, pengingat > 48 jam, `Hentikan semua`), navigasi & lencana di `AccountButton` dan `ProviderApplyScreen`, serta `test/my_sources_test.dart` (termasuk integrasi mode tiruan). `flutter analyze` & `flutter test` lulus; Firebase/emulator sungguhan belum dijalankan. |
-| S9-S11 | ditunda | Bergantung pada S6–S8. |
+| S9 Kesegaran data (memudar & tersembunyi) | selesai & teruji (mock/widget) | Jam suntik & timer 1 menit di `SourceProvider`, penyembunyian sumber kedaluwarsa berpemilik untuk non-admin + `showUnconfirmed`, `Terdekat` meletakkan `stale`/`expired` di akhir, `FilterChip` & banner jumlah tersembunyi di `SourceListScreen`, lencana abu-abu `Tidak pasti` di `AvailabilityBadge`/`SourceCard`, pengelola/konfirmasi/peringatan di `SourceDetailScreen`, pin redup dapat diketuk di `SourceMapScreen`, serta `test/freshness_test.dart`. `flutter analyze` & `flutter test` lulus; pengujian perangkat nyata belum dijalankan. |
+| S10-S11 | ditunda | S7, S10, dan S11 belum dijalankan. |
 
 ### Berkas yang berubah di S1/S2
 - `lib/config.dart`: `kHideAfter`, `kReconfirmReminderAfter`, `kProviderTermsVersion`.

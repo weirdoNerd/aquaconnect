@@ -123,9 +123,29 @@ class _SourceListScreenState extends State<SourceListScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilterChip(
+                label: const Text('Tampilkan yang belum dikonfirmasi'),
+                selected: p.showUnconfirmed,
+                onSelected: p.setShowUnconfirmed,
+              ),
+            ),
+          ),
           if (p.fromCache && !p.loading)
             _banner(Icons.cloud_off,
                 'Data dari penyimpanan lokal, mungkin tidak terbaru.'),
+          if (!p.loading && p.hiddenUnconfirmedCount > 0)
+            _banner(
+              Icons.visibility_off_outlined,
+              '${p.hiddenUnconfirmedCount} sumber disembunyikan karena belum dikonfirmasi',
+              action: TextButton(
+                onPressed: () => p.setShowUnconfirmed(true),
+                child: const Text('Tampilkan'),
+              ),
+            ),
           if (p.sortNearest && p.nearestDistance != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -162,6 +182,8 @@ class _SourceListScreenState extends State<SourceListScreen> {
                             itemBuilder: (_, i) => SourceCard(
                               source: items[i],
                               distance: p.distanceLabel(items[i]),
+                              freshness: p.freshnessOf(items[i]),
+                              staleLabel: p.staleLabelOf(items[i]),
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -177,10 +199,10 @@ class _SourceListScreenState extends State<SourceListScreen> {
     );
   }
 
-  Widget _banner(IconData icon, String text) => Container(
+  Widget _banner(IconData icon, String text, {Widget? action}) => Container(
         width: double.infinity,
         margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.amber.shade100,
           borderRadius: BorderRadius.circular(8),
@@ -189,6 +211,7 @@ class _SourceListScreenState extends State<SourceListScreen> {
           Icon(icon, size: 18),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+          if (action != null) action,
         ]),
       );
 

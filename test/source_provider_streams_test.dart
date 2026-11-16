@@ -15,6 +15,7 @@ WaterSource _s(String id, {String? owner, ListingStatus status = ListingStatus.p
       availability: Availability.available,
       intendedUse: 'Belum diverifikasi',
       openingHours: '24 jam',
+      verifiedAt: DateTime.now(),
       listingStatus: status,
       ownerId: owner,
     );

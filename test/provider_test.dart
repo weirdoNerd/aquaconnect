@@ -51,7 +51,8 @@ void main() {
     test('filter jenis dan pencarian', () async {
       final p = _guest(MockSourceService(), _noLocation);
       await pumpEventQueue();
-      expect(p.items.length, 8);
+      expect(p.items.length, 7);
+      expect(p.hiddenUnconfirmedCount, 1);
 
       p.setType(SourceType.publicWell);
       expect(p.items.every((s) => s.type == SourceType.publicWell), isTrue);

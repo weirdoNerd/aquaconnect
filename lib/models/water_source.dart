@@ -182,13 +182,16 @@ class WaterSource {
   }
 
   /// Label bila status sudah lama tidak dikonfirmasi, atau null bila masih segar.
-  String? get staleLabel {
+  String? staleLabelAt([DateTime? now]) {
     final v = verifiedAt;
     if (v == null) return 'Status belum pernah dikonfirmasi';
-    final age = DateTime.now().difference(v);
+    final age = (now ?? DateTime.now()).difference(v);
     if (age >= kStaleAfter) return 'Belum dikonfirmasi ${age.inDays} hari';
     return null;
   }
+
+  /// Label bila status sudah lama tidak dikonfirmasi (memakai jam perangkat).
+  String? get staleLabel => staleLabelAt();
 
   WaterSource copyWith({
     String? id,

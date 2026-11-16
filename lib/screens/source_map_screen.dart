@@ -43,21 +43,27 @@ class _SourceMapScreenState extends State<SourceMapScreen> {
     return const MapOptions(initialCenter: _fallbackCenter, initialZoom: 14);
   }
 
-  Marker _marker(WaterSource s) => Marker(
-        point: LatLng(s.latitude, s.longitude),
-        width: 44,
-        height: 44,
-        // Ujung pin tepat di koordinat (bagian bawah ikon menyentuh titik).
-        alignment: Alignment.topCenter,
-        child: Semantics(
-          button: true,
-          label: '${s.name}, ${s.availability.label}',
-          child: GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => SourceDetailScreen(sourceId: s.id)),
-            ),
+  Marker _marker(WaterSource s, Freshness freshness) {
+    final dimmed = freshness != Freshness.fresh;
+    return Marker(
+      point: LatLng(s.latitude, s.longitude),
+      width: 44,
+      height: 44,
+      // Ujung pin tepat di koordinat (bagian bawah ikon menyentuh titik).
+      alignment: Alignment.topCenter,
+      child: Semantics(
+        button: true,
+        label: dimmed
+            ? '${s.name}, ${s.availability.label}, belum dikonfirmasi'
+            : '${s.name}, ${s.availability.label}',
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => SourceDetailScreen(sourceId: s.id)),
+          ),
+          child: Opacity(
+            opacity: dimmed ? 0.5 : 1.0,
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
@@ -70,7 +76,9 @@ class _SourceMapScreenState extends State<SourceMapScreen> {
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 
   Future<void> _myLocation() async {
     final sp = context.read<SourceProvider>();
@@ -133,7 +141,7 @@ class _SourceMapScreenState extends State<SourceMapScreen> {
                         ),
                       ),
                     ),
-                  for (final s in items) _marker(s),
+                  for (final s in items) _marker(s, sp.freshnessOf(s)),
                 ],
               ),
               const RichAttributionWidget(

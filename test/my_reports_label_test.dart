@@ -12,8 +12,8 @@ import 'helpers/fakes.dart';
 
 Widget _host(SourceProvider sp, ReportProvider rp) => MultiProvider(
       providers: [
-        ChangeNotifierProvider<SourceProvider>.value(value: sp),
-        ChangeNotifierProvider<ReportProvider>.value(value: rp),
+        ChangeNotifierProvider<SourceProvider>(create: (_) => sp),
+        ChangeNotifierProvider<ReportProvider>(create: (_) => rp),
       ],
       child: const MaterialApp(home: MyReportsScreen()),
     );

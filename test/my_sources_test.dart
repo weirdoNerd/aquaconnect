@@ -274,8 +274,8 @@ void main() {
         key: UniqueKey(),
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider(auth)),
-          ChangeNotifierProvider.value(value: sp),
-          ChangeNotifierProvider.value(value: mySources),
+          ChangeNotifierProvider(lazy: false, create: (_) => sp),
+          ChangeNotifierProvider(create: (_) => mySources),
         ],
         child: const MaterialApp(home: MySourcesScreen()),
       ));
@@ -460,7 +460,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => AuthProvider(auth)),
           ChangeNotifierProvider(
               create: (_) => ProviderApplicationProvider(_StubProviderService())),
-          ChangeNotifierProvider.value(value: sp),
+          ChangeNotifierProvider(lazy: false, create: (_) => sp),
           ChangeNotifierProvider(
               create: (_) =>
                   MySourcesProvider(_SpySourceService())..syncUser('p1', isProvider: true)),
