@@ -170,8 +170,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: const Text(
                           'Akun demo (hanya mode debug):\n'
-                          'admin@aquaconnect.test / admin123\n'
-                          'warga@aquaconnect.test / warga123',
+                          'admin@aquaconnect.test / admin123 (Admin)\n'
+                          'warga@aquaconnect.test / warga123 (Warga)\n'
+                          'penyedia@aquaconnect.test / penyedia123 (Penyedia)\n'
+                          'calon@aquaconnect.test / calon123 (Calon penyedia)',
                           style: TextStyle(fontSize: 12),
                         ),
                       ),

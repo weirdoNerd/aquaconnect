@@ -15,6 +15,7 @@ dikerjakan, penyimpangan dari dokumen sumber beserta alasannya, dan apa yang men
 | S3 Lapisan data | selesai ditulis | `SourceService` (aliran per peran, operasi penyedia dan admin), `ProviderService` baru, `SourceProvider.syncUser`, `verifiedBy` di semua jalur admin. Belum dikompilasi dan belum dijalankan di CI/emulator. Lihat bagian "S3: lapisan data" di bawah. |
 | S4 Profil langsung | selesai ditulis | `users/{uid}` dipantau (`ProfileSession`), `reactivate` menghapus `providerNote`, label baru di "Laporan Saya". Belum dikompilasi dan belum dijalankan di CI/emulator. Lihat bagian "S4: profil langsung" di bawah. |
 | S4.1 Perbaikan kecil | selesai ditulis | `register()` memakai `ProfileSession.runRegistration` (try/finally) sehingga `endRegistration` selalu terpanggil, tepat sekali; impor tak terpakai diperiksa. Belum dikompilasi dan belum dijalankan di CI/emulator. |
+| D1 Mode tiruan siap demo | selesai & teruji | `MockSourceService.actAs` tersambung ke `MockAuthService.authChanges` di `Bootstrap`; `MockProviderService` memperbarui profil `MockAuthService`; akun `penyedia` & `calon`, 4 sumber milik `mock-provider`, petunjuk `LoginScreen`, `docs/DEMO.md`, dan `test/demo_mock_test.dart`. `flutter analyze` (0 masalah) & `flutter test` (193 lulus) sudah dijalankan. |
 | S5-S11 | ditunda | Bergantung pada S3/S4. |
 
 ### Berkas yang berubah di S1/S2
@@ -71,8 +72,8 @@ Selesai ditulis, belum dijalankan (`flutter analyze`, `flutter test`, dan tes ru
   "Sumber tidak lagi tayang"; admin tidak terdampak dan teks adminnya tidak diubah.
 - **Status penyedia tidak langsung terlihat (diatasi di S4).** Profil kini dipantau langsung; setelah admin menyetujui,
   aliran "milik sendiri" terbuka tanpa keluar-masuk (lihat bagian S4 untuk apa yang sudah dan belum terbukti).
-- **Mode tiruan:** `MockSourceService.actAs` belum tersambung ke `AuthProvider`; operasi penyedia di mode tiruan baru berjalan
-  di tes. Jalur admin tiruan tidak dibatasi agar alur yang ada tetap jalan.
+- **Mode tiruan (diatasi di D1):** `MockSourceService.actAs` kini tersambung ke `MockAuthService.authChanges` di `Bootstrap`,
+  dan `MockProviderService` memperbarui profil di `MockAuthService`. Jalur admin tiruan tetap tidak dibatasi agar alur yang ada tetap jalan.
 
 ### Perilaku yang HANYA dibuktikan oleh mock/fake, bukan emulator
 - Penolakan yang meniru rules (penyedia hanya miliknya, status yang diizinkan, alasan minimal) di `MockSourceService` dan

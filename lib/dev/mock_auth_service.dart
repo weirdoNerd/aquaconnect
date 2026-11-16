@@ -32,6 +32,25 @@ class MockAuthService implements AuthService {
         email: 'warga@aquaconnect.test',
       ),
     ),
+    'penyedia@aquaconnect.test': _Account(
+      'penyedia123',
+      const AppUser(
+        uid: 'mock-provider',
+        name: 'Penyedia Demo',
+        email: 'penyedia@aquaconnect.test',
+        providerStatus: ProviderStatus.active,
+        emailVerified: true,
+      ),
+    ),
+    'calon@aquaconnect.test': _Account(
+      'calon123',
+      const AppUser(
+        uid: 'mock-calon',
+        name: 'Calon Demo',
+        email: 'calon@aquaconnect.test',
+        emailVerified: true,
+      ),
+    ),
   };
 
   @override

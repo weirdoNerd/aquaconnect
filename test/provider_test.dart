@@ -51,7 +51,7 @@ void main() {
     test('filter jenis dan pencarian', () async {
       final p = _guest(MockSourceService(), _noLocation);
       await pumpEventQueue();
-      expect(p.items.length, 5);
+      expect(p.items.length, 8);
 
       p.setType(SourceType.publicWell);
       expect(p.items.every((s) => s.type == SourceType.publicWell), isTrue);
@@ -89,7 +89,7 @@ void main() {
       final dup = _newSource(
           name: '[SIMULASI] Sumur Umum RW 01', lat: -6.1450, lng: 106.7340);
       expect(await p.saveSource(dup, isNew: true), isNotNull);
-      expect(p.all.length, 5);
+      expect(p.all.length, 8);
     });
 
     test('saveSource menambah sumber baru', () async {
@@ -97,7 +97,7 @@ void main() {
       await pumpEventQueue();
       expect(await p.saveSource(_newSource(), isNew: true), isNull);
       await pumpEventQueue();
-      expect(p.all.length, 6);
+      expect(p.all.length, 9);
     });
 
     test('sumber nonaktif disembunyikan dari warga tetapi ada di all', () async {

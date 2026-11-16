@@ -136,9 +136,11 @@ void main() {
     test('watchPending hanya yang menunggu', () async {
       await svc.apply(_app('u1'));
       await svc.apply(_app('u2'));
-      expect((await svc.watchPending().first).map((a) => a.uid).toSet(), {'u1', 'u2'});
+      expect((await svc.watchPending().first).map((a) => a.uid).toSet(),
+          {'mock-calon', 'u1', 'u2'});
       await svc.review('u1', approve: true);
-      expect((await svc.watchPending().first).map((a) => a.uid), ['u2']);
+      expect((await svc.watchPending().first).map((a) => a.uid).toSet(),
+          {'mock-calon', 'u2'});
     });
 
     test('fetchProviders hanya active dan terminated, urut nama', () async {
@@ -146,7 +148,7 @@ void main() {
       svc.seedProfile(const ProviderProfile(uid: 'b', name: 'Agus', email: 'a@x.id', status: ProviderStatus.terminated));
       svc.seedProfile(const ProviderProfile(uid: 'c', name: 'Cici', email: 'c@x.id', status: ProviderStatus.none));
       final list = await svc.fetchProviders();
-      expect(list.map((p) => p.name), ['Agus', 'Budi']);
+      expect(list.map((p) => p.name), ['Agus', 'Budi', 'Penyedia Demo']);
     });
   });
 

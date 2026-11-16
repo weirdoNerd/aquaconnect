@@ -137,6 +137,10 @@ class MockProviderService implements ProviderService {
     _profiles[uid] = _profile(uid).copyWith(
         status: approve ? ProviderStatus.active : ProviderStatus.none,
         reviewedAt: now);
+    _auth?.updateProfile(
+      uid,
+      providerStatus: approve ? ProviderStatus.active : ProviderStatus.none,
+    );
     _ctrl.add(null);
   }
 
@@ -147,6 +151,11 @@ class MockProviderService implements ProviderService {
     callLog.add('users:terminated');
     _profiles[uid] = _profile(uid)
         .copyWith(status: ProviderStatus.terminated, note: r, reviewedAt: DateTime.now());
+    _auth?.updateProfile(
+      uid,
+      providerStatus: ProviderStatus.terminated,
+      providerNote: r,
+    );
     _ctrl.add(null);
     // (2) Lalu penangguhan; kegagalan tidak membatalkan (1).
     callLog.add('suspendAllOwned');
@@ -172,6 +181,11 @@ class MockProviderService implements ProviderService {
             status: ProviderStatus.active,
             reviewedAt: DateTime.now(),
             clearNote: true); // meniru FieldValue.delete() pada providerNote
+    _auth?.updateProfile(
+      uid,
+      providerStatus: ProviderStatus.active,
+      clearProviderNote: true,
+    );
     _ctrl.add(null);
   }
 }
