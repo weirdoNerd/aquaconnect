@@ -7,6 +7,7 @@ import '../models/provider_application.dart';
 import '../providers/auth_provider.dart';
 import '../providers/provider_application_provider.dart';
 import 'login_screen.dart';
+import 'my_sources_screen.dart';
 
 /// Teks Ketentuan Penyedia (disimpan di satu tempat; naikkan bersama
 /// [kProviderTermsVersion] dan batas `termsVersion` di firestore.rules).
@@ -150,7 +151,12 @@ class _ProviderApplyScreenState extends State<ProviderApplyScreen> {
         icon: Icons.verified_user,
         iconColor: Colors.green.shade800,
         title: 'Kamu sudah menjadi penyedia',
-        message: 'Halaman Sumber Saya hadir di pembaruan berikutnya.',
+        message: 'Kelola status ketersediaan dan konfirmasi sumber air Anda di halaman Sumber Saya.',
+        actionLabel: 'Buka Sumber Saya',
+        onAction: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MySourcesScreen()),
+        ),
       );
     }
 

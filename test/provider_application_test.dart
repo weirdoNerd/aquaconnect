@@ -313,13 +313,14 @@ void main() async {
       expect(find.text('Menyediakan air minum isi ulang setiap hari.'), findsOneWidget);
     });
 
-    testWidgets('3f: active menampilkan status penyedia dan info Sumber Saya', (tester) async {
+    testWidgets('3f: active menampilkan status penyedia dan tombol Buka Sumber Saya',
+        (tester) async {
       await mountScreen(
         tester,
         initialUser: _user(providerStatus: ProviderStatus.active),
       );
       expect(find.text('Kamu sudah menjadi penyedia'), findsOneWidget);
-      expect(find.text('Halaman Sumber Saya hadir di pembaruan berikutnya.'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Buka Sumber Saya'), findsOneWidget);
     });
 
     testWidgets('3g: terminated menampilkan alasan pemutusan tanpa tombol ajukan',

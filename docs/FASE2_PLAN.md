@@ -17,7 +17,9 @@ dikerjakan, penyimpangan dari dokumen sumber beserta alasannya, dan apa yang men
 | S4.1 Perbaikan kecil | selesai ditulis | `register()` memakai `ProfileSession.runRegistration` (try/finally) sehingga `endRegistration` selalu terpanggil, tepat sekali; impor tak terpakai diperiksa. Belum dikompilasi dan belum dijalankan di CI/emulator. |
 | D1 Mode tiruan siap demo | selesai & teruji | `MockSourceService.actAs` tersambung ke `MockAuthService.authChanges` di `Bootstrap`; `MockProviderService` memperbarui profil `MockAuthService`; akun `penyedia` & `calon`, 4 sumber milik `mock-provider`, petunjuk `LoginScreen`, `docs/DEMO.md`, dan `test/demo_mock_test.dart`. `flutter analyze` (0 masalah) & `flutter test` (193 lulus) sudah dijalankan. |
 | S5 Pengajuan penyedia (sisi warga) | selesai & teruji (mock/widget) | `ProviderService` dipasang di `main.dart` (Firebase & mock) dan `app_providers.dart`; `ProviderApplicationProvider`, `ProviderApplyScreen` (3a–3g + Ketentuan Penyedia v1 DRAF), `AccountButton` (item & label peran), serta tes unit/widget baru. `flutter analyze` dan `flutter test` lulus; pengujian terhadap Firebase/emulator sungguhan belum dijalankan. |
-| S6-S11 | ditunda | Bergantung pada S5/S4. |
+| S6-S7 | ditunda | S6 tinjauan admin & S7 unggah/edit sumber penyedia belum dijalankan. |
+| S8 Sumber Saya | selesai & teruji (mock/widget) | `MySourcesProvider` (busy/galat per sumber, `confirmAll`, `closeAllOwned`), `MySourcesScreen` (aksi hanya pada `published`, tutup dengan alasan & konfirmasi permanen, pengingat > 48 jam, `Hentikan semua`), navigasi & lencana di `AccountButton` dan `ProviderApplyScreen`, serta `test/my_sources_test.dart` (termasuk integrasi mode tiruan). `flutter analyze` & `flutter test` lulus; Firebase/emulator sungguhan belum dijalankan. |
+| S9-S11 | ditunda | Bergantung pada S6–S8. |
 
 ### Berkas yang berubah di S1/S2
 - `lib/config.dart`: `kHideAfter`, `kReconfirmReminderAfter`, `kProviderTermsVersion`.

@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import '../models/app_user.dart';
 import '../models/provider_application.dart';
 import '../providers/auth_provider.dart';
+import '../providers/my_sources_provider.dart';
 import '../providers/provider_application_provider.dart';
+import '../providers/source_provider.dart';
 import '../screens/admin_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_reports_screen.dart';
+import '../screens/my_sources_screen.dart';
 import '../screens/provider_apply_screen.dart';
 
 class AccountButton extends StatelessWidget {
@@ -46,6 +49,9 @@ class AccountButton extends StatelessWidget {
       case 'provider':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const ProviderApplyScreen()));
+      case 'my_sources':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const MySourcesScreen()));
       case 'reports':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const MyReportsScreen()));
@@ -85,6 +91,16 @@ class AccountButton extends StatelessWidget {
 
     final app = context.watch<ProviderApplicationProvider>().application;
     final providerItem = _providerMenuLabel(user, app);
+    SourceProvider? sourceProv;
+    try {
+      sourceProv = context.watch<SourceProvider>();
+    } on ProviderNotFoundException {
+      sourceProv = null;
+    }
+    final showMySources = user.isProvider && !user.isAdmin;
+    final dueCount = (showMySources && sourceProv != null)
+        ? MySourcesProvider.dueFor(user.uid, sourceProv.all).length
+        : 0;
 
     return PopupMenuButton<String>(
       tooltip: 'Akun',
@@ -115,6 +131,39 @@ class AccountButton extends StatelessWidget {
         ],
         if (user.isAdmin)
           const PopupMenuItem(value: 'admin', child: Text('Panel pengelola')),
+        if (showMySources)
+          PopupMenuItem(
+            value: 'my_sources',
+            child: Semantics(
+              label: dueCount > 0
+                  ? 'Sumber saya, $dueCount perlu dikonfirmasi'
+                  : 'Sumber saya',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Sumber saya'),
+                  if (dueCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade900,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$dueCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         if (providerItem != null)
           PopupMenuItem(value: 'provider', child: Text(providerItem)),
         const PopupMenuItem(value: 'reports', child: Text('Laporan saya')),

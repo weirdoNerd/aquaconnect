@@ -2,6 +2,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'providers/admin_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/my_sources_provider.dart';
 import 'providers/provider_application_provider.dart';
 import 'providers/report_provider.dart';
 import 'providers/source_provider.dart';
@@ -48,5 +49,14 @@ List<SingleChildWidget> appProviders({
         create: (ctx) => ProviderApplicationProvider(providerService)
           ..syncUser(ctx.read<AuthProvider>().user?.uid),
         update: (_, auth, app) => app!..syncUser(auth.user?.uid),
+      ),
+      ChangeNotifierProxyProvider<AuthProvider, MySourcesProvider>(
+        create: (ctx) {
+          final a = ctx.read<AuthProvider>();
+          return MySourcesProvider(sourceService)
+            ..syncUser(a.user?.uid, isProvider: a.isProvider);
+        },
+        update: (_, auth, mp) =>
+            mp!..syncUser(auth.user?.uid, isProvider: auth.isProvider),
       ),
     ];
