@@ -12,6 +12,7 @@ import '../providers/provider_admin_provider.dart';
 import '../providers/source_provider.dart';
 import '../widgets/availability_badge.dart';
 import '../widgets/status_chip.dart';
+import 'listing_review_sheet.dart';
 import 'provider_admin_tab.dart';
 import 'review_sheet.dart';
 import 'source_form_screen.dart';
@@ -178,13 +179,27 @@ class _AdminReportCard extends StatelessWidget {
   }
 }
 
-class _SourcesTab extends StatelessWidget {
+class _SourcesTab extends StatefulWidget {
   const _SourcesTab();
+
+  @override
+  State<_SourcesTab> createState() => _SourcesTabState();
+}
+
+class _SourcesTabState extends State<_SourcesTab> {
+  bool _onlyPending = false;
 
   @override
   Widget build(BuildContext context) {
     final sp = context.watch<SourceProvider>();
-    final sources = sp.all;
+    final allSources = sp.all;
+    final pendingCount =
+        allSources.where((s) => s.listingStatus == ListingStatus.pending).length;
+    final sources = _onlyPending
+        ? allSources
+            .where((s) => s.listingStatus == ListingStatus.pending)
+            .toList()
+        : allSources;
     const showSeed = kDebugMode && useFirebase;
 
     final header = <Widget>[
@@ -209,6 +224,28 @@ class _SourcesTab extends StatelessWidget {
                 'Formatnya rusak sehingga tidak tampil di aplikasi. Periksa di Firebase Console.'),
           ),
         ),
+      Wrap(
+        spacing: 8,
+        children: [
+          ChoiceChip(
+            label: Text('Semua (${allSources.length})'),
+            selected: !_onlyPending,
+            onSelected: (_) => setState(() => _onlyPending = false),
+          ),
+          ChoiceChip(
+            label: Text('Menunggu verifikasi ($pendingCount)'),
+            selected: _onlyPending,
+            onSelected: (_) => setState(() => _onlyPending = true),
+          ),
+        ],
+      ),
+      if (_onlyPending && sources.isEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text('Tidak ada sumber yang menunggu verifikasi.'),
+          ),
+        ),
     ];
 
     return ListView.builder(
@@ -220,6 +257,8 @@ class _SourcesTab extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8), child: header[i]);
         }
         final s = sources[i - header.length];
+        final isPending = s.listingStatus == ListingStatus.pending;
+        final owner = s.ownerName?.trim() ?? '';
         return Card(
           child: ListTile(
             leading: CircleAvatar(child: Icon(s.type.icon)),
@@ -227,11 +266,22 @@ class _SourcesTab extends StatelessWidget {
             subtitle: Text([
               s.type.label,
               s.address,
-              if (!s.isActive) 'Nonaktif',
+              if (owner.isNotEmpty) owner,
+              if (isPending)
+                'Menunggu verifikasi'
+              else if (!s.isActive)
+                s.listingStatus.label,
               if (s.qualityFlag) 'Ada penanda kualitas',
             ].join(' • ')),
-            trailing: AvailabilityBadge(availability: s.availability),
-            onTap: () => _open(ctx, s),
+            trailing: isPending
+                ? TextButton(
+                    onPressed: () => showListingReviewSheet(ctx, s),
+                    child: const Text('Tinjau'),
+                  )
+                : AvailabilityBadge(availability: s.availability),
+            onTap: () => isPending
+                ? showListingReviewSheet(ctx, s)
+                : _open(ctx, s),
           ),
         );
       },

@@ -119,8 +119,9 @@ abstract class SourceService {
   /// isSimulated, reviewNote, closedReason, closedAt.
   Future<void> createAsProvider(WaterSource source, String uid, String ownerName);
 
-  /// Mengajukan ulang sumber yang DITOLAK (rejected -> pending), dengan data
-  /// yang sudah diperbaiki. Catatan penolakan dihapus.
+  /// Mengajukan ulang sumber yang belum tayang (`rejected` atau `pending`) dengan
+  /// data yang sudah diperbaiki. Catatan penolakan dihapus dan status menjadi
+  /// `pending`.
   Future<void> resubmit(WaterSource source);
 
   /// Hanya data operasional sumber yang SUDAH tayang. Tidak pernah menulis

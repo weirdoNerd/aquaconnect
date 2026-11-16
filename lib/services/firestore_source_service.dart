@@ -139,9 +139,10 @@ class FirestoreSourceService implements SourceService {
 
   @override
   Future<void> resubmit(WaterSource s) => _guard(() async {
-        if (s.listingStatus != ListingStatus.rejected) {
+        if (s.listingStatus != ListingStatus.rejected &&
+            s.listingStatus != ListingStatus.pending) {
           throw const SourceException(
-              'Hanya sumber yang ditolak yang bisa diajukan ulang.');
+              'Hanya sumber menunggu verifikasi atau ditolak yang bisa diubah di jalur ini.');
         }
         // Hanya field pada daftar jalur (a) di rules. ownerId, qualityFlag, dan
         // isSimulated sengaja tidak ditulis.
@@ -156,6 +157,8 @@ class FirestoreSourceService implements SourceService {
           'openingHours': s.openingHours,
           'listingStatus': 'pending',
           'isActive': false,
+          'verifiedBy': 'provider',
+          'verifiedAt': _now,
           'reviewNote': FieldValue.delete(),
           'updatedAt': _now,
         });

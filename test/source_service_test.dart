@@ -122,11 +122,30 @@ void main() {
       expect(s.ownerId, 'p1');
     });
 
-    test('hanya untuk rejected, dan hanya milik sendiri', () async {
+    test('pending -> pending, memperbarui data', () async {
       final id = await _owned(svc, 'p1');
       final pending = await _get(svc, id);
-      expect(() => svc.resubmit(pending), throwsA(isA<SourceException>()));
 
+      await Future<void>.delayed(_later);
+      await svc.resubmit(_renamed(pending, 'Sumur Pending Diubah'));
+      final s = await _get(svc, id);
+      expect(s.listingStatus, ListingStatus.pending);
+      expect(s.name, 'Sumur Pending Diubah');
+      expect(s.verifiedBy, VerifiedBy.provider);
+      expect(s.updatedAt!.isAfter(pending.updatedAt!), isTrue);
+    });
+
+    test('ditolak untuk sumber tayang/ditangguhkan dan milik orang lain', () async {
+      final pubId = await _published(svc, 'p1');
+      final pub = await _get(svc, pubId);
+      expect(() => svc.resubmit(pub), throwsA(isA<SourceException>()));
+
+      final suspId = await _owned(svc, 'p1', name: 'Sumur Ditangguhkan');
+      await svc.setListing(suspId, ListingStatus.suspended, note: 'Ditahan');
+      final susp = await _get(svc, suspId);
+      expect(() => svc.resubmit(susp), throwsA(isA<SourceException>()));
+
+      final id = await _owned(svc, 'p1', name: 'Sumur Ditolak');
       await svc.setListing(id, ListingStatus.rejected, note: 'Pin kurang tepat');
       final rejected = await _get(svc, id);
       svc.actAs('p2');

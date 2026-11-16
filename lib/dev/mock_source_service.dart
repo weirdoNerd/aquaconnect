@@ -223,11 +223,15 @@ class MockSourceService implements SourceService {
   Future<void> resubmit(WaterSource source) async {
     final i = _owned(source.id);
     final old = _list[i];
-    if (source.listingStatus != ListingStatus.rejected ||
-        old.listingStatus != ListingStatus.rejected) {
+    final canResubmit = old.listingStatus == ListingStatus.rejected ||
+        old.listingStatus == ListingStatus.pending;
+    final srcAllowed = source.listingStatus == ListingStatus.rejected ||
+        source.listingStatus == ListingStatus.pending;
+    if (!canResubmit || !srcAllowed) {
       throw const SourceException(
-          'Hanya sumber yang ditolak yang bisa diajukan ulang.');
+          'Hanya sumber menunggu verifikasi atau ditolak yang bisa diubah di jalur ini.');
     }
+    final now = DateTime.now();
     _list[i] = WaterSource(
       id: old.id,
       name: source.name,
@@ -238,14 +242,14 @@ class MockSourceService implements SourceService {
       availability: source.availability,
       intendedUse: source.intendedUse,
       openingHours: source.openingHours,
-      updatedAt: DateTime.now(),
-      verifiedAt: old.verifiedAt,
+      updatedAt: now,
+      verifiedAt: now,
       isSimulated: old.isSimulated,
       qualityFlag: old.qualityFlag,
       listingStatus: ListingStatus.pending,
       ownerId: old.ownerId,
       ownerName: old.ownerName,
-      verifiedBy: old.verifiedBy,
+      verifiedBy: VerifiedBy.provider,
       // reviewNote dihapus
       closedReason: old.closedReason,
       closedAt: old.closedAt,

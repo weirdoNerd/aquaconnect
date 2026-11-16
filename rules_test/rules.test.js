@@ -646,6 +646,19 @@ test('S3 resubmit: payload lengkap dengan deleteField(reviewNote) lolos', async 
     latitude: -6.15, longitude: 106.74, sourceType: 'publicWell',
     availability: 'available', intendedUse: 'Belum diverifikasi', openingHours: '24 jam',
     listingStatus: 'pending', isActive: false,
+    verifiedBy: 'provider', verifiedAt: st(),
+    reviewNote: deleteField(), updatedAt: st(),
+  }));
+});
+
+test('S3 resubmit: ubah sumber pending tetap lolos', async () => {
+  await seedOwned(['pend1'], { listingStatus: 'pending', isActive: false });
+  await assertSucceeds(updateDoc(doc(dbFor('provider'), 'water_sources/pend1'), {
+    name: 'Perbaikan Sumur Pending', address: 'Cengkareng, Jakarta Barat',
+    latitude: -6.15, longitude: 106.74, sourceType: 'publicWell',
+    availability: 'limited', intendedUse: 'Kebutuhan rumah tangga', openingHours: '08:00-17:00',
+    listingStatus: 'pending', isActive: false,
+    verifiedBy: 'provider', verifiedAt: st(),
     reviewNote: deleteField(), updatedAt: st(),
   }));
 });

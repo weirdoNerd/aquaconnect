@@ -3,15 +3,25 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../config.dart';
+import '../models/provider_application.dart';
 import '../models/water_source.dart';
 import '../providers/auth_provider.dart';
+import '../providers/my_sources_provider.dart';
+import '../providers/provider_application_provider.dart';
 import '../providers/source_provider.dart';
 import 'location_picker_screen.dart';
 
-/// Tambah (source == null) atau ubah sumber air. Khusus admin.
+enum SourceFormMode { admin, providerNew, providerEdit }
+
+/// Tambah atau ubah sumber air (untuk pengelola maupun penyedia aktif).
 class SourceFormScreen extends StatefulWidget {
   final WaterSource? source;
-  const SourceFormScreen({super.key, this.source});
+  final SourceFormMode mode;
+  const SourceFormScreen({
+    super.key,
+    this.source,
+    this.mode = SourceFormMode.admin,
+  });
 
   @override
   State<SourceFormScreen> createState() => _SourceFormScreenState();
@@ -34,7 +44,17 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
   bool _saving = false;
   String? _error;
 
-  bool get _isEdit => widget.source != null;
+  bool get _isAdminMode => widget.mode == SourceFormMode.admin;
+
+  bool get _isEdit =>
+      widget.mode != SourceFormMode.providerNew && widget.source != null;
+
+  bool get _canEditDescriptive =>
+      _isAdminMode ||
+      widget.mode == SourceFormMode.providerNew ||
+      (widget.mode == SourceFormMode.providerEdit &&
+          (widget.source?.listingStatus == ListingStatus.pending ||
+              widget.source?.listingStatus == ListingStatus.rejected));
 
   /// Sumber berpemilik yang belum tayang (pending/rejected): penayangannya lewat
   /// setListing (S7), bukan sakelar ini.
@@ -86,7 +106,7 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
     }
   }
 
-  Future<void> _save() async {
+  Future<void> _save(String providerOwnerName) async {
     final okForm = _formKey.currentState!.validate();
     setState(() => _pointError = _point == null);
     if (!okForm || _point == null) return;
@@ -97,47 +117,119 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
     });
 
     final hours = _hours.text.trim();
-    final original = widget.source?.listingStatus;
-    final data = WaterSource(
-      id: widget.source?.id ?? '',
-      name: _name.text.trim(),
-      address: _address.text.trim(),
-      latitude: _point!.latitude,
-      longitude: _point!.longitude,
-      type: _type,
-      availability: _availability,
-      intendedUse: _use.text.trim(),
-      openingHours: hours.isEmpty ? '-' : hours,
-      isSimulated: _simulated,
-      qualityFlag: _qualityFlag,
-      // Mematikan sakelar = ditangguhkan, kecuali sumber sudah berstatus tak tayang
-      // lain (pending/ditolak/ditutup) yang tidak boleh diubah diam-diam.
-      listingStatus: _active
-          ? ListingStatus.published
-          : (original != null && original != ListingStatus.published
-              ? original
-              : ListingStatus.suspended),
-      ownerId: widget.source?.ownerId,
-      ownerName: widget.source?.ownerName,
-      verifiedBy: _confirm ? VerifiedBy.admin : widget.source?.verifiedBy,
-      reviewNote: widget.source?.reviewNote,
-      closedReason: widget.source?.closedReason,
-      closedAt: widget.source?.closedAt,
-    );
-
+    final normalizedHours = hours.isEmpty ? '-' : hours;
     final nav = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final err = await context
-        .read<SourceProvider>()
-        .saveSource(data, isNew: !_isEdit, confirmStatus: _confirm);
+
+    String? err;
+    String successMessage = '';
+
+    switch (widget.mode) {
+      case SourceFormMode.admin:
+        final original = widget.source?.listingStatus;
+        final data = WaterSource(
+          id: widget.source?.id ?? '',
+          name: _name.text.trim(),
+          address: _address.text.trim(),
+          latitude: _point!.latitude,
+          longitude: _point!.longitude,
+          type: _type,
+          availability: _availability,
+          intendedUse: _use.text.trim(),
+          openingHours: normalizedHours,
+          isSimulated: _simulated,
+          qualityFlag: _qualityFlag,
+          // Mematikan sakelar = ditangguhkan, kecuali sumber sudah berstatus tak tayang
+          // lain (pending/ditolak/ditutup) yang tidak boleh diubah diam-diam.
+          listingStatus: _active
+              ? ListingStatus.published
+              : (original != null && original != ListingStatus.published
+                  ? original
+                  : ListingStatus.suspended),
+          ownerId: widget.source?.ownerId,
+          ownerName: widget.source?.ownerName,
+          verifiedBy: _confirm ? VerifiedBy.admin : widget.source?.verifiedBy,
+          reviewNote: widget.source?.reviewNote,
+          closedReason: widget.source?.closedReason,
+          closedAt: widget.source?.closedAt,
+        );
+        err = await context
+            .read<SourceProvider>()
+            .saveSource(data, isNew: !_isEdit, confirmStatus: _confirm);
+        successMessage = _isEdit
+            ? 'Data sumber air diperbarui.'
+            : 'Sumber air baru ditambahkan.';
+
+      case SourceFormMode.providerNew:
+        final uid = context.read<AuthProvider>().user?.uid;
+        final draft = WaterSource(
+          id: '',
+          name: _name.text.trim(),
+          address: _address.text.trim(),
+          latitude: _point!.latitude,
+          longitude: _point!.longitude,
+          type: _type,
+          availability: _availability,
+          intendedUse: _use.text.trim(),
+          openingHours: normalizedHours,
+          listingStatus: ListingStatus.pending,
+          ownerId: uid,
+          ownerName: providerOwnerName,
+          verifiedBy: VerifiedBy.provider,
+        );
+        err = await context
+            .read<MySourcesProvider>()
+            .createAsProvider(draft, providerOwnerName);
+        successMessage = 'Sumber dikirim, menunggu verifikasi admin';
+
+      case SourceFormMode.providerEdit:
+        final s = widget.source!;
+        final mySources = context.read<MySourcesProvider>();
+        if (s.listingStatus == ListingStatus.published) {
+          final availChanged = _availability != s.availability;
+          final hoursChanged = normalizedHours != s.openingHours;
+          if (!availChanged && !hoursChanged) {
+            err = 'Tidak ada perubahan untuk disimpan.';
+          } else {
+            final ok = await mySources.updateOperational(
+              s.id,
+              availability: availChanged ? _availability : null,
+              openingHours: hoursChanged ? normalizedHours : null,
+            );
+            err = ok
+                ? null
+                : (mySources.errorFor(s.id) ?? 'Gagal menyimpan perubahan.');
+            successMessage = 'Data operasional sumber diperbarui.';
+          }
+        } else {
+          final updated = WaterSource(
+            id: s.id,
+            name: _name.text.trim(),
+            address: _address.text.trim(),
+            latitude: _point!.latitude,
+            longitude: _point!.longitude,
+            type: _type,
+            availability: _availability,
+            intendedUse: _use.text.trim(),
+            openingHours: normalizedHours,
+            listingStatus: s.listingStatus,
+            ownerId: s.ownerId,
+            ownerName:
+                providerOwnerName.isNotEmpty ? providerOwnerName : s.ownerName,
+            verifiedBy: VerifiedBy.provider,
+          );
+          err = await mySources.resubmit(updated);
+          successMessage = s.listingStatus == ListingStatus.rejected
+              ? 'Sumber diajukan ulang, menunggu verifikasi admin.'
+              : 'Perubahan dikirim, menunggu verifikasi admin.';
+        }
+    }
+
     if (!mounted) return;
 
     if (err == null) {
       nav.pop();
-      messenger.showSnackBar(SnackBar(
-          content: Text(_isEdit
-              ? 'Data sumber air diperbarui.'
-              : 'Sumber air baru ditambahkan.')));
+      messenger.showSnackBar(SnackBar(content: Text(successMessage)));
     } else {
       setState(() {
         _saving = false;
@@ -210,32 +302,118 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                 ),
               ],
             ),
-            Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(onTap: _pickLocation),
+            if (_canEditDescriptive)
+              Positioned.fill(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(onTap: _pickLocation),
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _accessDenied(String title, String message) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(message, textAlign: TextAlign.center),
+          ),
+        ),
+      );
+
+  String _titleText() => switch (widget.mode) {
+        SourceFormMode.admin => _isEdit ? 'Ubah Sumber Air' : 'Tambah Sumber Air',
+        SourceFormMode.providerNew => 'Tambah Sumber Penyedia',
+        SourceFormMode.providerEdit => 'Ubah Sumber Saya',
+      };
+
+  String _submitLabel() => switch (widget.mode) {
+        SourceFormMode.admin => _isEdit ? 'Simpan perubahan' : 'Tambah sumber air',
+        SourceFormMode.providerNew => 'Kirim untuk verifikasi',
+        SourceFormMode.providerEdit =>
+          widget.source?.listingStatus == ListingStatus.rejected
+              ? 'Ajukan ulang'
+              : 'Simpan perubahan',
+      };
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     // Pengecekan UI saja. Pembatasan sebenarnya ada di Security Rules.
-    if (!context.watch<AuthProvider>().isAdmin) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Sumber Air')),
-        body: const Center(child: Text('Akses ditolak. Khusus pengelola.')),
-      );
+    if (_isAdminMode && !auth.isAdmin) {
+      return _accessDenied('Sumber Air', 'Akses ditolak. Khusus pengelola.');
+    }
+
+    var providerOwnerName = '';
+    if (!_isAdminMode) {
+      final user = auth.user;
+      if (!auth.isProvider || user == null) {
+        return _accessDenied(
+            'Sumber Air', 'Akses ditolak. Khusus penyedia aktif.');
+      }
+      if (widget.mode == SourceFormMode.providerEdit) {
+        final s = widget.source;
+        if (s == null || s.ownerId != user.uid) {
+          return _accessDenied(
+              'Ubah Sumber Saya', 'Sumber air tidak ditemukan atau bukan milik Anda.');
+        }
+        if (s.listingStatus == ListingStatus.closed ||
+            s.listingStatus == ListingStatus.suspended) {
+          return _accessDenied('Ubah Sumber Saya',
+              'Sumber yang ditutup atau ditangguhkan tidak dapat diubah.');
+        }
+      }
+
+      final appProv = context.watch<ProviderApplicationProvider>();
+      final app = appProv.application;
+      providerOwnerName =
+          (app != null && app.status == ApplicationStatus.approved)
+              ? app.organizationName.trim()
+              : (widget.source?.ownerName?.trim() ?? '');
+
+      if (widget.mode == SourceFormMode.providerNew &&
+          providerOwnerName.isEmpty) {
+        return Scaffold(
+          appBar: AppBar(title: Text(_titleText())),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: appProv.loading
+                  ? const CircularProgressIndicator()
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          appProv.error ??
+                              'Nama usaha penyedia belum termuat. Periksa koneksi lalu coba lagi.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: appProv.retry,
+                          child: const Text('Coba lagi'),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        );
+      }
     }
 
     final scheme = Theme.of(context).colorScheme;
+    final src = widget.source;
+    final rejectNote = src?.reviewNote?.trim() ?? '';
+    final isPublishedLocked = !_isAdminMode &&
+        widget.mode == SourceFormMode.providerEdit &&
+        src?.listingStatus == ListingStatus.published;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isEdit ? 'Ubah Sumber Air' : 'Tambah Sumber Air')),
+      appBar: AppBar(title: Text(_titleText())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -244,8 +422,68 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (!_isAdminMode && providerOwnerName.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Nama penyedia / pemilik',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      child: Text(providerOwnerName),
+                    ),
+                  ),
+                if (widget.mode == SourceFormMode.providerEdit &&
+                    src?.listingStatus == ListingStatus.rejected &&
+                    rejectNote.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: scheme.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: scheme.error),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: scheme.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Alasan ditolak: $rejectNote\nPerbaiki data lalu ajukan ulang.',
+                            style: TextStyle(color: scheme.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (isPublishedLocked)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.lock_outline, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Sumber sudah tayang. Nama, alamat, jenis sumber, tujuan penggunaan, '
+                            'dan lokasi dikunci. Anda hanya dapat mengubah status ketersediaan dan jam layanan.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 TextFormField(
                   controller: _name,
+                  enabled: _canEditDescriptive,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
                   maxLength: 100,
@@ -265,6 +503,7 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _address,
+                  enabled: _canEditDescriptive,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
                   maxLength: 200,
@@ -285,7 +524,9 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                       avatar: Icon(t.icon, size: 18),
                       label: Text(t.label),
                       selected: _type == t,
-                      onSelected: (_) => setState(() => _type = t),
+                      onSelected: _canEditDescriptive
+                          ? (_) => setState(() => _type = t)
+                          : null,
                     ),
                 ]),
                 const SizedBox(height: 16),
@@ -300,7 +541,7 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                       onSelected: (_) => setState(() => _availability = a),
                     ),
                 ]),
-                if (_isEdit)
+                if (_isAdminMode && _isEdit)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Konfirmasi status sekarang'),
@@ -313,6 +554,7 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _use,
+                  enabled: _canEditDescriptive,
                   textInputAction: TextInputAction.next,
                   maxLength: 150,
                   decoration: const InputDecoration(
@@ -344,21 +586,23 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      'Lat ${_point!.latitude.toStringAsFixed(6)}, Lng ${_point!.longitude.toStringAsFixed(6)} • ketuk peta untuk mengubah',
+                      _canEditDescriptive
+                          ? 'Lat ${_point!.latitude.toStringAsFixed(6)}, Lng ${_point!.longitude.toStringAsFixed(6)} • ketuk peta untuk mengubah'
+                          : 'Lat ${_point!.latitude.toStringAsFixed(6)}, Lng ${_point!.longitude.toStringAsFixed(6)} • lokasi dikunci',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
                 const SizedBox(height: 8),
-                if (!_hideListingSwitch)
+                if (_isAdminMode && !_hideListingSwitch)
                   SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Tampilkan di aplikasi'),
-                  subtitle: const Text(
-                      'Matikan untuk menonaktifkan sumber (data dan riwayat laporan tetap tersimpan).'),
-                  value: _active,
-                  onChanged: (v) => setState(() => _active = v),
-                ),
-                if (_isEdit && widget.source!.qualityFlag)
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Tampilkan di aplikasi'),
+                    subtitle: const Text(
+                        'Matikan untuk menonaktifkan sumber (data dan riwayat laporan tetap tersimpan).'),
+                    value: _active,
+                    onChanged: (v) => setState(() => _active = v),
+                  ),
+                if (_isAdminMode && _isEdit && widget.source!.qualityFlag)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Penanda dugaan masalah kualitas aktif'),
@@ -367,13 +611,15 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                     value: _qualityFlag,
                     onChanged: (v) => setState(() => _qualityFlag = v),
                   ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Data simulasi'),
-                  subtitle: const Text('Ditandai di aplikasi sebagai bukan lokasi nyata.'),
-                  value: _simulated,
-                  onChanged: (v) => setState(() => _simulated = v),
-                ),
+                if (_isAdminMode)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Data simulasi'),
+                    subtitle:
+                        const Text('Ditandai di aplikasi sebagai bukan lokasi nyata.'),
+                    value: _simulated,
+                    onChanged: (v) => setState(() => _simulated = v),
+                  ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -381,14 +627,15 @@ class _SourceFormScreenState extends State<SourceFormScreen> {
                   ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
-                  onPressed: _saving ? null : _save,
+                  onPressed:
+                      _saving ? null : () => _save(providerOwnerName),
                   icon: _saving
                       ? const SizedBox(
                           height: 18,
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.save),
-                  label: Text(_isEdit ? 'Simpan perubahan' : 'Tambah sumber air'),
+                  label: Text(_submitLabel()),
                 ),
               ],
             ),

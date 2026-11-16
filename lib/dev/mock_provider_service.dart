@@ -23,6 +23,16 @@ class MockProviderService implements ProviderService {
   final Map<String, ProviderProfile> _profiles = {};
 
   void _seedDemoData() {
+    _apps['mock-provider'] = ProviderApplication(
+      uid: 'mock-provider',
+      organizationName: 'Penyedia Demo',
+      contactPhone: '+628111222333',
+      description: 'Penyedia air bersih demo yang sudah disetujui.',
+      termsVersion: kProviderTermsVersion,
+      status: ApplicationStatus.approved,
+      createdAt: DateTime.now().subtract(const Duration(days: 10)),
+      reviewedAt: DateTime.now().subtract(const Duration(days: 9)),
+    );
     _apps['mock-calon'] = ProviderApplication(
       uid: 'mock-calon',
       organizationName: '[SIMULASI] Depot Air Sejahtera',

@@ -348,6 +348,24 @@ class SourceProvider extends ChangeNotifier {
     }
   }
 
+  /// Mengubah siklus hidup sumber air (jalur admin). Mengembalikan pesan error,
+  /// atau null jika berhasil.
+  Future<String?> setListingStatus(
+    String id,
+    ListingStatus status, {
+    String note = '',
+  }) async {
+    try {
+      await _service.setListing(id, status, note: note);
+      return null;
+    } on SourceException catch (e) {
+      return e.message;
+    } catch (e) {
+      debugPrint('setListingStatus: $e');
+      return 'Gagal memperbarui status sumber. Coba lagi.';
+    }
+  }
+
   /// Dipanggil hanya dari panel admin (mode debug + Firebase).
   Future<int> seedDemoData(List<WaterSource> data) => _service.seed(data);
 

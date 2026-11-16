@@ -94,6 +94,41 @@ class MySourcesProvider extends ChangeNotifier {
   Future<bool> closeOwned(String id, String reason) =>
       _runFor(id, () => _service.closeOwned(id, reason));
 
+  /// Mengirim sumber baru milik penyedia aktif (status awal `pending`).
+  /// Mengembalikan pesan galat, atau null jika berhasil.
+  Future<String?> createAsProvider(WaterSource draft, String ownerName) =>
+      _guardAction(
+        () => _service.createAsProvider(draft, _uid!, ownerName),
+        fallbackError: 'Gagal mengirim sumber. Periksa koneksi lalu coba lagi.',
+      );
+
+  /// Mengirim ulang sumber belum tayang (`pending` / `rejected`).
+  /// Mengembalikan pesan galat, atau null jika berhasil.
+  Future<String?> resubmit(WaterSource updated) => _guardAction(
+        () => _service.resubmit(updated),
+        fallbackError:
+            'Gagal mengirim perubahan. Periksa koneksi lalu coba lagi.',
+      );
+
+  Future<String?> _guardAction(
+    Future<void> Function() action, {
+    required String fallbackError,
+  }) async {
+    final uid = _uid;
+    if (!_isProvider || uid == null) {
+      return 'Hanya penyedia aktif yang dapat mengelola sumber.';
+    }
+    try {
+      await action();
+      return null;
+    } on SourceException catch (e) {
+      return e.message;
+    } catch (e) {
+      debugPrint('MySourcesProvider form error: $e');
+      return fallbackError;
+    }
+  }
+
   /// Mengonfirmasi semua [targets] secara berurutan tanpa berhenti di tengah
   /// bila ada yang gagal.
   Future<({int succeeded, List<String> failedNames})> confirmAll(

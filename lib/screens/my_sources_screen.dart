@@ -7,6 +7,7 @@ import '../providers/my_sources_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/source_service.dart';
 import '../widgets/availability_badge.dart';
+import 'source_form_screen.dart';
 
 const List<String> _kCloseReasonPresets = [
   'Tidak lagi menyediakan air',
@@ -139,17 +140,30 @@ class MySourcesScreen extends StatelessWidget {
       body: sourceProv.loading && owned.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : owned.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.water_drop_outlined, size: 56),
-                        SizedBox(height: 12),
-                        Text(
+                        const Icon(Icons.water_drop_outlined, size: 56),
+                        const SizedBox(height: 12),
+                        const Text(
                           'Kamu belum punya sumber air',
                           textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SourceFormScreen(
+                                mode: SourceFormMode.providerNew,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          label: const Text('Tambah sumber'),
                         ),
                       ],
                     ),
@@ -158,6 +172,21 @@ class MySourcesScreen extends StatelessWidget {
               : ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SourceFormScreen(
+                              mode: SourceFormMode.providerNew,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_location_alt_outlined),
+                        label: const Text('Tambah sumber'),
+                      ),
+                    ),
                     if (due.isNotEmpty)
                       _ReminderBanner(
                         count: due.length,
@@ -180,6 +209,15 @@ class MySourcesScreen extends StatelessWidget {
                         onConfirm: () => _confirmSingle(context, mySources, s),
                         onSelectAvailability: (a) =>
                             _updateAvailability(context, mySources, s, a),
+                        onEdit: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SourceFormScreen(
+                              source: s,
+                              mode: SourceFormMode.providerEdit,
+                            ),
+                          ),
+                        ),
                         onClose: () => _closeSingle(context, mySources, s),
                       ),
                     if (hasClosable) ...[
@@ -346,6 +384,7 @@ class _OwnedSourceCard extends StatelessWidget {
   final bool needsReconfirm;
   final VoidCallback onConfirm;
   final ValueChanged<Availability> onSelectAvailability;
+  final VoidCallback onEdit;
   final VoidCallback onClose;
 
   const _OwnedSourceCard({
@@ -355,6 +394,7 @@ class _OwnedSourceCard extends StatelessWidget {
     required this.needsReconfirm,
     required this.onConfirm,
     required this.onSelectAvailability,
+    required this.onEdit,
     required this.onClose,
   });
 
@@ -520,30 +560,46 @@ class _OwnedSourceCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red.shade800,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit'),
                   ),
-                  onPressed: busy ? null : onClose,
-                  icon: const Icon(Icons.lock_outline, size: 18),
-                  label: const Text('Tutup sumber'),
-                ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade800,
+                    ),
+                    onPressed: busy ? null : onClose,
+                    icon: const Icon(Icons.lock_outline, size: 18),
+                    label: const Text('Tutup sumber'),
+                  ),
+                ],
               ),
             ] else if (ls == ListingStatus.pending ||
                 ls == ListingStatus.rejected) ...[
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red.shade800,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit'),
                   ),
-                  onPressed: busy ? null : onClose,
-                  icon: const Icon(Icons.lock_outline, size: 18),
-                  label: const Text('Tutup sumber'),
-                ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade800,
+                    ),
+                    onPressed: busy ? null : onClose,
+                    icon: const Icon(Icons.lock_outline, size: 18),
+                    label: const Text('Tutup sumber'),
+                  ),
+                ],
               ),
             ],
           ],
