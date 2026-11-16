@@ -8,9 +8,11 @@ import '../models/water_report.dart';
 import '../models/water_source.dart';
 import '../providers/admin_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/provider_admin_provider.dart';
 import '../providers/source_provider.dart';
 import '../widgets/availability_badge.dart';
 import '../widgets/status_chip.dart';
+import 'provider_admin_tab.dart';
 import 'review_sheet.dart';
 import 'source_form_screen.dart';
 
@@ -43,18 +45,25 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     final pending = context.watch<AdminProvider>().pendingCount;
+    final pendingProviders = context.watch<ProviderAdminProvider>().pendingCount;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Panel Pengelola'),
           bottom: TabBar(tabs: [
             Tab(text: pending > 0 ? 'Laporan ($pending)' : 'Laporan'),
             const Tab(text: 'Sumber air'),
+            Tab(
+                text: pendingProviders > 0
+                    ? 'Penyedia ($pendingProviders)'
+                    : 'Penyedia'),
           ]),
         ),
-        body: const TabBarView(children: [_ReportsTab(), _SourcesTab()]),
+        body: const TabBarView(
+          children: [_ReportsTab(), _SourcesTab(), ProviderAdminTab()],
+        ),
       ),
     );
   }

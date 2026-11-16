@@ -84,6 +84,7 @@ class FirestoreProviderService implements ProviderService {
               uid: d.id,
               name: (m['name'] as String?) ?? '',
               email: (m['email'] as String?) ?? '',
+              role: byNameOrNull(UserRole.values, m['role']) ?? UserRole.user,
               status: byNameOrNull(ProviderStatus.values, m['providerStatus']) ??
                   ProviderStatus.none,
               note: m['providerNote'] as String?,
