@@ -11,7 +11,7 @@ import 'dummy_sources.dart';
 /// updateOperational/confirmStillCurrent hanya untuk sumber tayang, closeOwned
 /// hanya dari pending/rejected/published, alasan tutup minimal 3 karakter.
 /// Identitas pemanggil diatur lewat [actAs]. Di mode tiruan aplikasi, [actAs]
-/// belum tersambung ke AuthProvider (dikerjakan bersama UI penyedia, S4+).
+/// tersambung ke MockAuthService.authChanges di Bootstrap (lib/main.dart).
 /// Jalur admin tidak dibatasi agar alur admin mode tiruan yang ada tetap jalan.
 class MockSourceService implements SourceService {
   final List<WaterSource> _list = List.of(dummySources);

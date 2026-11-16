@@ -51,4 +51,5 @@ app.*.map.json
 dart_defines.json
 android/app/google-services.json
 dart_defines.json
-
+firestore-debug.log
+rules_test/node_modules

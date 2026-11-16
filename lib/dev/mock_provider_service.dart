@@ -1,18 +1,53 @@
 import 'dart:async';
+import '../config.dart';
 import '../models/app_user.dart';
 import '../models/provider_application.dart';
 import '../models/provider_profile.dart';
 import '../services/provider_service.dart';
 import '../services/source_service.dart';
+import 'mock_auth_service.dart';
 
 /// Penyimpanan TIRUAN di memori. Jangan dipakai di rilis.
 class MockProviderService implements ProviderService {
   final SourceService _sources;
-  MockProviderService(this._sources);
+  final MockAuthService? _auth;
+  MockProviderService(this._sources, {MockAuthService? auth, bool seedDemo = true})
+      : _auth = auth {
+    if (seedDemo) {
+      _seedDemoData();
+    }
+  }
 
   final _ctrl = StreamController<void>.broadcast();
   final Map<String, ProviderApplication> _apps = {};
   final Map<String, ProviderProfile> _profiles = {};
+
+  void _seedDemoData() {
+    _apps['mock-calon'] = ProviderApplication(
+      uid: 'mock-calon',
+      organizationName: '[SIMULASI] Depot Air Sejahtera',
+      contactPhone: '+6281234567890',
+      description: 'Penyedia depot air isi ulang dan tangki bersih untuk warga.',
+      termsVersion: kProviderTermsVersion,
+      status: ApplicationStatus.pending,
+      createdAt: DateTime.now().subtract(const Duration(hours: 12)),
+    );
+    _profiles['mock-provider'] = const ProviderProfile(
+      uid: 'mock-provider',
+      name: 'Penyedia Demo',
+      email: 'penyedia@aquaconnect.test',
+      status: ProviderStatus.active,
+    );
+    _profiles['mock-calon'] = const ProviderProfile(
+      uid: 'mock-calon',
+      name: 'Calon Demo',
+      email: 'calon@aquaconnect.test',
+      status: ProviderStatus.none,
+    );
+  }
+
+  /// Menyiapkan pengajuan untuk tes atau demo.
+  void seedApplication(ProviderApplication a) => _apps[a.uid] = a;
 
   /// Urutan operasi penting, untuk tes urutan pemutusan.
   final List<String> callLog = [];

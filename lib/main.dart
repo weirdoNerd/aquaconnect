@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +49,7 @@ class Bootstrap extends StatefulWidget {
 
 class _BootstrapState extends State<Bootstrap> {
   late Future<_Deps> _future = _init();
+  StreamSubscription<dynamic>? _authSub;
 
   Future<_Deps> _init() async {
     if (useFirebase) {
@@ -55,8 +57,17 @@ class _BootstrapState extends State<Bootstrap> {
       return _Deps(FirebaseAuthService(), FirestoreReportService(),
           FirestoreSourceService());
     }
+    final auth = MockAuthService();
     final sources = MockSourceService();
-    return _Deps(MockAuthService(), MockReportService(sources), sources);
+    _authSub?.cancel();
+    _authSub = auth.authChanges.listen((u) => sources.actAs(u?.uid));
+    return _Deps(auth, MockReportService(sources), sources);
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 
   @override
