@@ -60,21 +60,27 @@ class _BootstrapState extends State<Bootstrap> {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       final sources = FirestoreSourceService();
       return _Deps(
-        FirebaseAuthService(),
+        FirebaseAuthService(sources: sources),
         FirestoreReportService(),
         sources,
         FirestoreProviderService(sources: sources),
       );
     }
-    final auth = MockAuthService();
     final sources = MockSourceService();
+    late final MockProviderService providers;
+    final auth = MockAuthService(
+      sources: sources,
+      onDeleteApplication: (uid) => providers.removeApplication(uid),
+      onDeleteProfile: (uid) => providers.removeProfile(uid),
+    );
+    providers = MockProviderService(sources, auth: auth);
     _authSub?.cancel();
     _authSub = auth.authChanges.listen((u) => sources.actAs(u?.uid));
     return _Deps(
       auth,
       MockReportService(sources),
       sources,
-      MockProviderService(sources, auth: auth),
+      providers,
     );
   }
 

@@ -58,3 +58,8 @@ Setiap field baru wajib diubah di EMPAT tempat sekaligus: model
 ## Penafian
 Status "tersedia" berarti sumber air dilaporkan ada, bukan jaminan air aman diminum.
 Data bertanda `[SIMULASI]` hanya untuk demo.
+
+## Kebijakan Privasi Singkat (Penyedia & Hapus Akun)
+- Data pengajuan penyedia (nama usaha/komunitas, nomor telepon kontak, deskripsi) hanya terlihat oleh admin untuk verifikasi dan peninjauan.
+- Bila penyedia aktif menghapus akun, seluruh sumber miliknya ditutup terlebih dahulu lalu pengajuan, profil, dan akun masuk dihapus.
+- Bila kemitraan penyedia telah diputus oleh admin (`terminated`), hanya akun masuk (autentikasi) yang dapat dihapus oleh pemilik akun; catatan pemutusan pada profil dan pengajuan tetap disimpan untuk mencegah penyalahgunaan atau pendaftaran ulang.

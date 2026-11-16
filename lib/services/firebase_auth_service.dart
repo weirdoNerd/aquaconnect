@@ -3,8 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/app_user.dart';
+import '../models/water_source.dart';
 import 'auth_service.dart';
+import 'firestore_source_service.dart';
 import 'profile_session.dart';
+import 'source_service.dart';
 
 /// Sumber profil dari Firestore: `users/{uid}` dipantau dengan snapshots().
 /// `includeMetadataChanges` agar peralihan cache -> server terlihat (dokumen
@@ -47,11 +50,16 @@ class FirestoreProfileSource implements ProfileSource {
 class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
+  final SourceService _sources;
   late final ProfileSession _session;
 
-  FirebaseAuthService({FirebaseAuth? auth, FirebaseFirestore? db})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _db = db ?? FirebaseFirestore.instance {
+  FirebaseAuthService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? db,
+    SourceService? sources,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _db = db ?? FirebaseFirestore.instance,
+        _sources = sources ?? FirestoreSourceService(db: db) {
     _session = ProfileSession(
       identityChanges: _auth.authStateChanges().map(_identityOf),
       currentIdentity: () => _identityOf(_auth.currentUser),
@@ -211,8 +219,24 @@ class FirebaseAuthService implements AuthService {
       final cred =
           EmailAuthProvider.credential(email: u.email ?? '', password: password);
       await u.reauthenticateWithCredential(cred);
-      await _db.collection('users').doc(u.uid).delete();
-      await u.delete();
+
+      final snap = await _db.collection('users').doc(u.uid).get();
+      final status = snap.exists
+          ? (byNameOrNull(ProviderStatus.values, snap.data()?['providerStatus']) ??
+              ProviderStatus.none)
+          : (_session.current?.providerStatus ?? ProviderStatus.none);
+
+      await executeAccountDeletion(
+        status: status,
+        closeAllOwned: () => _sources.closeAllOwned(u.uid, 'akun dihapus'),
+        deleteApplication: () =>
+            _db.collection('provider_applications').doc(u.uid).delete(),
+        deleteProfile: () => _db.collection('users').doc(u.uid).delete(),
+        deleteAuth: () => u.delete(),
+      );
+    } on AuthException {
+      _session.abortDeletion();
+      rethrow;
     } on FirebaseAuthException catch (e) {
       _session.abortDeletion();
       throw _map(e);

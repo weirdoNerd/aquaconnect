@@ -65,8 +65,11 @@ class AccountButton extends StatelessWidget {
         final ok = await auth.refreshUser();
         if (context.mounted && !ok) _snack(context, auth.error ?? 'Gagal memuat ulang.');
       case 'delete':
+        final status = auth.user?.providerStatus ?? ProviderStatus.none;
         final password = await showDialog<String>(
-            context: context, builder: (_) => const _DeleteAccountDialog());
+          context: context,
+          builder: (_) => _DeleteAccountDialog(providerStatus: status),
+        );
         if (password == null || !context.mounted) return;
         final ok = await auth.deleteAccount(password);
         if (context.mounted) {
@@ -175,7 +178,8 @@ class AccountButton extends StatelessWidget {
 }
 
 class _DeleteAccountDialog extends StatefulWidget {
-  const _DeleteAccountDialog();
+  final ProviderStatus providerStatus;
+  const _DeleteAccountDialog({required this.providerStatus});
 
   @override
   State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
@@ -190,6 +194,20 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     super.dispose();
   }
 
+  String _message() => switch (widget.providerStatus) {
+        ProviderStatus.active =>
+          'Akun, pengajuan, dan profilmu akan dihapus permanen. Semua sumber air '
+              'milik Anda akan ditutup terlebih dahulu. Laporan yang pernah dikirim '
+              'tetap tersimpan tanpa nama. Masukkan kata sandi untuk melanjutkan.',
+        ProviderStatus.terminated =>
+          'Hanya akun masuk yang akan dihapus. Sesuai kebijakan privasi dan keamanan, '
+              'catatan pemutusan kemitraan tetap disimpan agar tidak disalahgunakan. '
+              'Masukkan kata sandi untuk melanjutkan.',
+        ProviderStatus.none =>
+          'Akun dan profilmu akan dihapus permanen. Laporan yang pernah '
+              'dikirim tetap tersimpan tanpa nama. Masukkan kata sandi untuk melanjutkan.',
+      };
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -198,9 +216,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-              'Akun dan profilmu akan dihapus permanen. Laporan yang pernah '
-              'dikirim tetap tersimpan tanpa nama. Masukkan kata sandi untuk melanjutkan.'),
+          Text(_message()),
           const SizedBox(height: 12),
           TextField(
             controller: _ctrl,

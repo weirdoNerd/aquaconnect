@@ -30,12 +30,14 @@ class ReviewSheet extends StatefulWidget {
 class _ReviewSheetState extends State<ReviewSheet> {
   final _note = TextEditingController();
   Availability? _availability;
+  late bool _suspend;
   String? _noteError;
 
   @override
   void initState() {
     super.initState();
     final current = context.read<SourceProvider>().byId(widget.report.sourceId);
+    _suspend = widget.report.type == ReportType.noLongerOperating;
     // Saran awal; admin bebas mengubahnya.
     _availability = switch (widget.report.type) {
       ReportType.noWater ||
@@ -62,20 +64,50 @@ class _ReviewSheetState extends State<ReviewSheet> {
       setState(() => _noteError = 'Alasan penolakan wajib diisi (min. 5 karakter)');
       return;
     }
+    final source = context.read<SourceProvider>().byId(widget.report.sourceId);
+    final suspendNow = approve && _suspend;
+    if (suspendNow) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Tangguhkan sumber air?'),
+          content: Text(
+            'Sumber "${source?.name ?? 'ini'}" akan ditangguhkan dan '
+            'disembunyikan dari daftar publik.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Ya, tangguhkan'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
     final nav = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final ok = await context.read<AdminProvider>().review(
           widget.report,
           approve: approve,
           note: _note.text,
-          newAvailability: approve ? _availability : null,
+          newAvailability: approve && !suspendNow ? _availability : null,
+          suspendSource: suspendNow,
         );
+    if (!mounted) return;
     if (ok) {
       nav.pop();
       messenger.showSnackBar(SnackBar(
-          content: Text(approve
-              ? 'Laporan disetujui, data sumber air diperbarui.'
-              : 'Laporan ditolak dan alasan dicatat.')));
+          content: Text(!approve
+              ? 'Laporan ditolak dan alasan dicatat.'
+              : suspendNow
+                  ? 'Laporan disetujui, sumber air ditangguhkan.'
+                  : 'Laporan disetujui, data sumber air diperbarui.')));
     }
   }
 
@@ -106,20 +138,34 @@ class _ReviewSheetState extends State<ReviewSheet> {
           const SizedBox(height: 4),
           Text(widget.report.description),
           const Divider(height: 28),
-          Text('Status sumber air jika disetujui',
-              style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final a in Availability.values)
-                ChoiceChip(
-                  label: Text(a.label),
-                  selected: _availability == a,
-                  onSelected: (_) => setState(() => _availability = a),
-                ),
-            ],
-          ),
+          if (widget.report.type == ReportType.noLongerOperating) ...[
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Tangguhkan sumber air (disarankan)'),
+              subtitle: const Text(
+                'Sumber disembunyikan dari daftar warga dan tidak lagi tampil sebagai tersedia.',
+              ),
+              value: _suspend,
+              onChanged: (v) => setState(() => _suspend = v),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (!_suspend) ...[
+            Text('Status sumber air jika disetujui',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final a in Availability.values)
+                  ChoiceChip(
+                    label: Text(a.label),
+                    selected: _availability == a,
+                    onSelected: (_) => setState(() => _availability = a),
+                  ),
+              ],
+            ),
+          ],
           if (widget.report.type == ReportType.qualityConcern)
             const Padding(
               padding: EdgeInsets.only(top: 8),

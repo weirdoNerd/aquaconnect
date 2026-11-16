@@ -105,10 +105,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    // `noLongerOperating` baru ditampilkan di S10, setelah rules Fase 2
-                    // diterapkan; sebelum itu server menolaknya.
-                    for (final t in ReportType.values
-                        .where((t) => t != ReportType.noLongerOperating))
+                    for (final t in ReportType.values)
                       ChoiceChip(
                         avatar: Icon(t.icon, size: 18),
                         label: Text(t.label),
@@ -128,6 +125,21 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text('Pilih jenis laporan',
                         style: TextStyle(color: scheme.error, fontSize: 12)),
+                  ),
+                if (_type == ReportType.noLongerOperating)
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: const Text(
+                      'Gunakan laporan ini apabila penyedia atau titik air sudah berhenti '
+                      'beroperasi secara permanen.',
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
                 if (_type == ReportType.qualityConcern)
                   Container(

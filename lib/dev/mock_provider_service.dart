@@ -65,6 +65,16 @@ class MockProviderService implements ProviderService {
   /// Menyiapkan profil (dokumen `users`) untuk tes.
   void seedProfile(ProviderProfile p) => _profiles[p.uid] = p;
 
+  /// Menghapus pengajuan (dipakai saat hapus akun di mode tiruan).
+  void removeApplication(String uid) {
+    if (_apps.remove(uid) != null) _ctrl.add(null);
+  }
+
+  /// Menghapus profil (dipakai saat hapus akun di mode tiruan).
+  void removeProfile(String uid) {
+    if (_profiles.remove(uid) != null) _ctrl.add(null);
+  }
+
   ProviderProfile? profileOf(String uid) => _profiles[uid];
 
   ProviderProfile _profile(String uid) =>

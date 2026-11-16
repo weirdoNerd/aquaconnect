@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/source_service.dart';
 
 class _Account {
   String password;
@@ -11,6 +12,17 @@ class _Account {
 /// Autentikasi TIRUAN untuk pengembangan UI dan tes. Data hilang saat aplikasi
 /// ditutup. Build rilis tidak memakai kelas ini (lihat config.dart).
 class MockAuthService implements AuthService {
+  final SourceService? _sources;
+  final void Function(String uid)? _onDeleteApplication;
+  final void Function(String uid)? _onDeleteProfile;
+  MockAuthService({
+    SourceService? sources,
+    void Function(String uid)? onDeleteApplication,
+    void Function(String uid)? onDeleteProfile,
+  })  : _sources = sources,
+        _onDeleteApplication = onDeleteApplication,
+        _onDeleteProfile = onDeleteProfile;
+
   final _controller = StreamController<AppUser?>.broadcast();
   AppUser? _current;
 
@@ -163,7 +175,20 @@ class MockAuthService implements AuthService {
     if (acc == null || acc.password != password) {
       throw const AuthException('Kata sandi salah.');
     }
-    _accounts.remove(u.email);
-    _set(null);
+    await executeAccountDeletion(
+      status: u.providerStatus,
+      closeAllOwned: () async {
+        final svc = _sources;
+        if (svc != null) {
+          await svc.closeAllOwned(u.uid, 'akun dihapus');
+        }
+      },
+      deleteApplication: () async => _onDeleteApplication?.call(u.uid),
+      deleteProfile: () async => _onDeleteProfile?.call(u.uid),
+      deleteAuth: () async {
+        _accounts.remove(u.email);
+        _set(null);
+      },
+    );
   }
 }

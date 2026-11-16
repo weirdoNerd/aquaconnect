@@ -111,6 +111,7 @@ class AdminProvider extends ChangeNotifier {
     required bool approve,
     String note = '',
     Availability? newAvailability,
+    bool suspendSource = false,
   }) async {
     if (!approve && note.trim().length < 5) {
       _reviewError = 'Alasan penolakan wajib diisi (min. 5 karakter).';
@@ -131,6 +132,7 @@ class AdminProvider extends ChangeNotifier {
                 sourceId: report.sourceId,
                 availability: newAvailability,
                 markQualityConcern: report.type == ReportType.qualityConcern,
+                suspend: suspendSource,
               )
             : null,
       );
