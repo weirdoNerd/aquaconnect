@@ -1,0 +1,290 @@
+rules_version = '2';
+
+// PERHATIAN: aturan ini mengubah perilaku query. Pengguna non-admin WAJIB memakai
+// where('isActive', isEqualTo: true) (atau where('ownerId', isEqualTo: uid)).
+// Terbitkan BERSAMAAN dengan klien yang sudah memakai query tersebut (Fase 2, S3),
+// bukan sebelumnya: klien lama membaca seluruh koleksi dan akan ditolak.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Satu akses dokumen per pemanggilan (bukan exists() + get()). Dokumen profil
+    // yang tidak ada menghasilkan galat = akses ditolak, dan itu yang diinginkan.
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn() && userDoc().get('role', 'user') == 'admin';
+    }
+
+    function isActiveProvider() {
+      return signedIn() && userDoc().get('providerStatus', 'none') == 'active';
+    }
+
+    // Nama pemilik pada sumber WAJIB sama dengan nama usaha yang disetujui admin,
+    // agar penyedia tidak bisa mengaku sebagai pihak lain (mis. instansi resmi).
+    function providerOrgName() {
+      return get(/databases/$(database)/documents/provider_applications/$(request.auth.uid)).data.organizationName;
+    }
+
+    function validName(n) {
+      return n is string && n.size() >= 2 && n.size() <= 60;
+    }
+
+    // Validasi dokumen sumber air HASIL AKHIR. Jika model mendapat field baru,
+    // daftar di hasOnly() WAJIB ikut diperbarui. `.get(kunci, bawaan)` dipakai agar
+    // dokumen lama tanpa field baru tetap valid.
+    function validSource() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'address', 'latitude', 'longitude',
+               'sourceType', 'availability', 'intendedUse', 'openingHours',
+               'updatedAt', 'verifiedAt', 'isSimulated', 'qualityFlag',
+               'isActive', 'ownerId', 'ownerName', 'listingStatus', 'verifiedBy',
+               'reviewNote', 'closedReason', 'closedAt'])
+        && d.name is string && d.name.size() >= 3 && d.name.size() <= 100
+        && d.address is string && d.address.size() <= 200
+        && d.latitude is number && d.latitude >= -90 && d.latitude <= 90
+        && d.longitude is number && d.longitude >= -180 && d.longitude <= 180
+        && d.sourceType in ['publicWell', 'distributionPost', 'refillStation', 'other']
+        && d.availability in ['available', 'limited', 'unavailable']
+        && d.intendedUse is string && d.intendedUse.size() <= 150
+        && d.openingHours is string && d.openingHours.size() <= 50
+        && d.get('qualityFlag', false) is bool
+        && d.get('listingStatus', 'published') in ['pending', 'published', 'suspended', 'closed', 'rejected']
+        // Invarian: isActive diturunkan dari listingStatus dan keduanya ditulis bersamaan.
+        && d.get('isActive', true) == (d.get('listingStatus', 'published') == 'published')
+        && d.get('verifiedBy', 'admin') in ['admin', 'provider']
+        && d.get('ownerName', '') is string && d.get('ownerName', '').size() <= 60
+        && d.get('reviewNote', '') is string && d.get('reviewNote', '').size() <= 200
+        && d.get('closedReason', '') is string && d.get('closedReason', '').size() <= 200;
+    }
+
+    // Penyedia membuat sumber: selalu menunggu verifikasi, tidak tayang, dan
+    // tanpa catatan tinjauan atau alasan penutupan (itu hak admin/penyedia kemudian).
+    function providerNew() {
+      let d = request.resource.data;
+      return d.ownerId == request.auth.uid
+        && d.ownerName == providerOrgName()
+        && d.listingStatus == 'pending' && d.isActive == false
+        && d.get('qualityFlag', false) == false
+        && d.get('isSimulated', false) == false
+        && d.verifiedBy == 'provider'
+        && !d.keys().hasAny(['reviewNote', 'closedReason', 'closedAt'])
+        && d.updatedAt == request.time && d.verifiedAt == request.time;
+    }
+
+    // Tiga jalur ubah yang diizinkan bagi penyedia pemilik.
+    function providerEdit() {
+      let o = resource.data;
+      let d = request.resource.data;
+      let ch = d.diff(o).affectedKeys();
+      return d.updatedAt == request.time && (
+        // (a) belum tayang: ubah data lalu ajukan ulang
+        (o.listingStatus in ['pending', 'rejected']
+          && d.listingStatus == 'pending' && d.isActive == false
+          && d.verifiedBy == 'provider'
+          && d.ownerName == providerOrgName()
+          && (!ch.hasAny(['verifiedAt']) || d.verifiedAt == request.time)
+          && ch.hasOnly(['name', 'address', 'latitude', 'longitude', 'sourceType',
+               'availability', 'intendedUse', 'openingHours', 'ownerName',
+               'listingStatus', 'isActive', 'reviewNote', 'updatedAt',
+               'verifiedAt', 'verifiedBy']))
+        // (b) sudah tayang: hanya data operasional; ubah status = wajib konfirmasi.
+        // `intendedUse` SENGAJA tidak termasuk: itu klaim kelayakan air (mis. "aman
+        // diminum") dan tidak boleh diubah penyedia tanpa tinjauan admin. Pada jalur (a)
+        // (belum tayang) tetap boleh karena admin meninjau sebelum tayang.
+        || (o.listingStatus == 'published'
+          && ch.hasOnly(['availability', 'openingHours',
+               'updatedAt', 'verifiedAt', 'verifiedBy'])
+          && (!ch.hasAny(['availability']) || ch.hasAll(['verifiedAt']))
+          && (!ch.hasAny(['verifiedAt'])
+              || (d.verifiedAt == request.time && d.verifiedBy == 'provider'))
+          && (!ch.hasAny(['verifiedBy']) || d.verifiedBy == 'provider'))
+        // (c) menutup sumber sendiri (alasan wajib)
+        || (o.listingStatus in ['pending', 'rejected', 'published']
+          && d.listingStatus == 'closed' && d.isActive == false
+          && d.get('closedReason', '').size() >= 3
+          && ch.hasOnly(['listingStatus', 'isActive', 'closedReason', 'closedAt', 'updatedAt'])
+          && d.closedAt == request.time)
+      );
+    }
+
+    function validApplication(d) {
+      return d.organizationName is string
+          && d.organizationName.size() >= 3 && d.organizationName.size() <= 80
+        && d.contactPhone is string && d.contactPhone.matches('^[0-9+ ]{6,20}$')
+        && d.description is string
+          && d.description.size() >= 10 && d.description.size() <= 300
+        && d.termsVersion == 1;   // naikkan bersama Ketentuan Penyedia dan kProviderTermsVersion
+    }
+
+    // ---- Profil pengguna ----
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Peran SELALU "user" dan tanpa status penyedia saat mendaftar.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'user'
+        && validName(request.resource.data.name)
+        && request.resource.data.email is string
+        && request.resource.data.email.lower() == request.auth.token.email.lower()
+        && request.resource.data.createdAt == request.time;
+
+      // Pemilik hanya boleh mengubah nama. Admin hanya boleh mengubah field penyedia
+      // (peran tidak pernah bisa diubah dari aplikasi).
+      allow update: if (signedIn()
+            && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+            && validName(request.resource.data.name))
+        || (isAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['providerStatus', 'providerReviewedAt', 'providerNote'])
+            && request.resource.data.providerStatus in ['none', 'active', 'terminated']
+            && request.resource.data.providerReviewedAt == request.time
+            && request.resource.data.get('providerNote', '').size() <= 200);
+
+      // Hapus akun dari dalam aplikasi (wajib untuk Google Play). Penyedia yang
+      // diputus tidak boleh menghapus jejaknya lalu mengajukan ulang; hanya akun Auth-nya
+      // yang bisa dihapus. `resource == null` menjaga pengguna tanpa dokumen profil
+      // tetap bisa menghapus akunnya.
+      allow delete: if signedIn() && request.auth.uid == uid
+        && (resource == null
+            || resource.data.get('providerStatus', 'none') != 'terminated');
+    }
+
+    // ---- Pengajuan penyedia (satu per pengguna; id dokumen = uid) ----
+    match /provider_applications/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && userDoc().get('providerStatus', 'none') == 'none'
+        && request.resource.data.keys().hasOnly(['uid', 'organizationName', 'contactPhone',
+             'description', 'termsVersion', 'status', 'adminNote', 'createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.adminNote == ''
+        && validApplication(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if (
+            // pemohon mengajukan ulang setelah ditolak
+            signedIn() && request.auth.uid == uid
+            && resource.data.status == 'rejected'
+            && request.resource.data.keys().hasOnly(['uid', 'organizationName', 'contactPhone',
+                 'description', 'termsVersion', 'status', 'adminNote', 'createdAt'])
+            && request.resource.data.uid == uid
+            && request.resource.data.status == 'pending'
+            && request.resource.data.adminNote == ''
+            && validApplication(request.resource.data)
+            && request.resource.data.createdAt == request.time)
+        || (
+            // admin meninjau SEKALI; penolakan wajib bercatatan
+            isAdmin() && resource.data.status == 'pending'
+            && request.resource.data.status in ['approved', 'rejected']
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'adminNote', 'reviewedAt'])
+            && request.resource.data.adminNote.size() <= 200
+            && request.resource.data.reviewedAt == request.time
+            && (request.resource.data.status == 'approved'
+                || request.resource.data.adminNote.size() >= 5));
+
+      // Dipakai saat hapus akun. TIDAK boleh bergantung pada urutan hapus di klien:
+      // bila profil sudah terhapus lebih dulu (aplikasi mati atau jaringan putus di tengah),
+      // pengajuan harus tetap bisa dihapus agar tidak menjadi data yatim (telepon, nama usaha).
+      // Penyedia yang diputus selalu punya dokumen profil (providerStatus 'terminated'),
+      // jadi tetap tidak bisa menghapusnya. Urutan di klien tetap dianjurkan.
+      allow delete: if signedIn() && request.auth.uid == uid
+        && (!exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            || userDoc().get('providerStatus', 'none') != 'terminated');
+    }
+
+    // ---- Sumber air ----
+    // Query publik WAJIB memakai where('isActive', isEqualTo: true). Dokumen yang
+    // belum punya field isActive tidak akan terbaca; isi dulu sebelum menerbitkan.
+    match /water_sources/{sourceId} {
+      allow read: if resource.data.isActive == true
+        || isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+
+      allow create: if (isAdmin() && validSource())
+        || (isActiveProvider() && validSource() && providerNew());
+
+      allow update: if (isAdmin() && validSource())
+        || (isActiveProvider()
+            && resource.data.get('ownerId', '') == request.auth.uid
+            && validSource()
+            && providerEdit());
+
+      // Tidak ada delete: gunakan listingStatus (penghapusan lunak).
+      allow delete: if false;
+    }
+
+    // ---- Laporan warga ----
+    match /reports/{reportId} {
+      allow read: if signedIn()
+        && (resource.data.reporterId == request.auth.uid || isAdmin());
+
+      // Laporan hanya sah jika ditulis BERSAMA kunci report_locks (satu batch).
+      // Itu menjamin satu warga hanya punya satu laporan pending per sumber+jenis.
+      // Untuk demo tanpa email asli: hapus baris email_verified (dan ubah
+      // kRequireVerifiedEmail di lib/config.dart).
+      allow create: if signedIn()
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly(['sourceId', 'reporterId', 'reportType',
+             'description', 'status', 'adminNote', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.adminNote == ''
+        && request.resource.data.reportType in ['noWater', 'inaccessible', 'qualityConcern',
+             'backAvailable', 'noLongerOperating']
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() <= 300
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.sourceId is string
+        && exists(/databases/$(database)/documents/water_sources/$(request.resource.data.sourceId))
+        && get(/databases/$(database)/documents/water_sources/$(request.resource.data.sourceId)).data.get('isActive', true) == true
+        && !exists(/databases/$(database)/documents/report_locks/$(request.auth.uid + '_' + request.resource.data.sourceId + '_' + request.resource.data.reportType))
+        && existsAfter(/databases/$(database)/documents/report_locks/$(request.auth.uid + '_' + request.resource.data.sourceId + '_' + request.resource.data.reportType));
+
+      // Admin meninjau laporan pending SEKALI. Penolakan wajib bercatatan.
+      allow update: if isAdmin()
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'adminNote', 'reviewedAt'])
+        && request.resource.data.adminNote is string
+        && request.resource.data.adminNote.size() <= 200
+        && request.resource.data.reviewedAt == request.time
+        && (request.resource.data.status == 'approved'
+            || request.resource.data.adminNote.size() >= 5);
+
+      allow delete: if false;
+    }
+
+    // ---- Kunci anti-duplikat: id = {uid}_{sourceId}_{reportType} ----
+    match /report_locks/{lockId} {
+      // Warga hanya boleh mengecek kunci miliknya sendiri.
+      allow get: if signedIn() && lockId.matches(request.auth.uid + '_.*');
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['reporterId', 'sourceId', 'reportType'])
+        && request.resource.data.reporterId == request.auth.uid
+        && lockId == request.auth.uid + '_' + request.resource.data.sourceId + '_' + request.resource.data.reportType;
+
+      allow update: if false;
+
+      // Kunci dilepas oleh admin di dalam transaksi peninjauan.
+      allow delete: if isAdmin();
+    }
+  }
+}
