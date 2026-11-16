@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'app_providers.dart';
 import 'config.dart';
 import 'dev/mock_auth_service.dart';
+import 'dev/mock_provider_service.dart';
 import 'dev/mock_report_service.dart';
 import 'dev/mock_source_service.dart';
 import 'firebase_options.dart';
@@ -15,9 +16,11 @@ import 'screens/config_error_screen.dart';
 import 'screens/source_list_screen.dart';
 import 'services/auth_service.dart';
 import 'services/firebase_auth_service.dart';
+import 'services/firestore_provider_service.dart';
 import 'services/firestore_report_service.dart';
 import 'services/firestore_source_service.dart';
 import 'services/location_service.dart';
+import 'services/provider_service.dart';
 import 'services/report_service.dart';
 import 'services/source_service.dart';
 import 'utils/app_theme.dart';
@@ -35,7 +38,8 @@ class _Deps {
   final AuthService auth;
   final ReportService reports;
   final SourceService sources;
-  const _Deps(this.auth, this.reports, this.sources);
+  final ProviderService providers;
+  const _Deps(this.auth, this.reports, this.sources, this.providers);
 }
 
 /// Menyiapkan layanan; bila Firebase gagal diinisialisasi, tampilkan layar
@@ -54,14 +58,24 @@ class _BootstrapState extends State<Bootstrap> {
   Future<_Deps> _init() async {
     if (useFirebase) {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      return _Deps(FirebaseAuthService(), FirestoreReportService(),
-          FirestoreSourceService());
+      final sources = FirestoreSourceService();
+      return _Deps(
+        FirebaseAuthService(),
+        FirestoreReportService(),
+        sources,
+        FirestoreProviderService(sources: sources),
+      );
     }
     final auth = MockAuthService();
     final sources = MockSourceService();
     _authSub?.cancel();
     _authSub = auth.authChanges.listen((u) => sources.actAs(u?.uid));
-    return _Deps(auth, MockReportService(sources), sources);
+    return _Deps(
+      auth,
+      MockReportService(sources),
+      sources,
+      MockProviderService(sources, auth: auth),
+    );
   }
 
   @override
@@ -95,6 +109,7 @@ class _BootstrapState extends State<Bootstrap> {
           authService: deps.auth,
           reportService: deps.reports,
           sourceService: deps.sources,
+          providerService: deps.providers,
           locationService: GeolocatorLocationService(),
         );
       },
@@ -106,12 +121,14 @@ class AquaConnectApp extends StatelessWidget {
   final AuthService authService;
   final ReportService reportService;
   final SourceService sourceService;
+  final ProviderService providerService;
   final LocationService locationService;
   const AquaConnectApp({
     super.key,
     required this.authService,
     required this.reportService,
     required this.sourceService,
+    required this.providerService,
     required this.locationService,
   });
 
@@ -122,6 +139,7 @@ class AquaConnectApp extends StatelessWidget {
         authService: authService,
         reportService: reportService,
         sourceService: sourceService,
+        providerService: providerService,
         locationService: locationService,
       ),
       child: MaterialApp(

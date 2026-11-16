@@ -16,7 +16,8 @@ dikerjakan, penyimpangan dari dokumen sumber beserta alasannya, dan apa yang men
 | S4 Profil langsung | selesai ditulis | `users/{uid}` dipantau (`ProfileSession`), `reactivate` menghapus `providerNote`, label baru di "Laporan Saya". Belum dikompilasi dan belum dijalankan di CI/emulator. Lihat bagian "S4: profil langsung" di bawah. |
 | S4.1 Perbaikan kecil | selesai ditulis | `register()` memakai `ProfileSession.runRegistration` (try/finally) sehingga `endRegistration` selalu terpanggil, tepat sekali; impor tak terpakai diperiksa. Belum dikompilasi dan belum dijalankan di CI/emulator. |
 | D1 Mode tiruan siap demo | selesai & teruji | `MockSourceService.actAs` tersambung ke `MockAuthService.authChanges` di `Bootstrap`; `MockProviderService` memperbarui profil `MockAuthService`; akun `penyedia` & `calon`, 4 sumber milik `mock-provider`, petunjuk `LoginScreen`, `docs/DEMO.md`, dan `test/demo_mock_test.dart`. `flutter analyze` (0 masalah) & `flutter test` (193 lulus) sudah dijalankan. |
-| S5-S11 | ditunda | Bergantung pada S3/S4. |
+| S5 Pengajuan penyedia (sisi warga) | selesai & teruji (mock/widget) | `ProviderService` dipasang di `main.dart` (Firebase & mock) dan `app_providers.dart`; `ProviderApplicationProvider`, `ProviderApplyScreen` (3a–3g + Ketentuan Penyedia v1 DRAF), `AccountButton` (item & label peran), serta tes unit/widget baru. `flutter analyze` dan `flutter test` lulus; pengujian terhadap Firebase/emulator sungguhan belum dijalankan. |
+| S6-S11 | ditunda | Bergantung pada S5/S4. |
 
 ### Berkas yang berubah di S1/S2
 - `lib/config.dart`: `kHideAfter`, `kReconfirmReminderAfter`, `kProviderTermsVersion`.

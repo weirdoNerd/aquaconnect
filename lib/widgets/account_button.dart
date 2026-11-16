@@ -1,15 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/app_user.dart';
+import '../models/provider_application.dart';
 import '../providers/auth_provider.dart';
+import '../providers/provider_application_provider.dart';
 import '../screens/admin_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/my_reports_screen.dart';
+import '../screens/provider_apply_screen.dart';
 
 class AccountButton extends StatelessWidget {
   const AccountButton({super.key});
 
   void _snack(BuildContext c, String text) =>
       ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(text)));
+
+  String _roleLabel(AppUser user) {
+    if (user.isProvider) return 'Penyedia';
+    if (user.isAdmin) return 'Pengelola';
+    return 'Warga';
+  }
+
+  String? _providerMenuLabel(AppUser user, ProviderApplication? app) {
+    if (user.isAdmin) return null;
+    if (user.providerStatus == ProviderStatus.active ||
+        user.providerStatus == ProviderStatus.terminated) {
+      return 'Status penyedia';
+    }
+    if (app != null &&
+        (app.status == ApplicationStatus.pending ||
+            app.status == ApplicationStatus.rejected)) {
+      return 'Status pengajuan';
+    }
+    return 'Jadi penyedia';
+  }
 
   Future<void> _onSelected(BuildContext context, String v) async {
     final auth = context.read<AuthProvider>();
@@ -19,6 +43,9 @@ class AccountButton extends StatelessWidget {
       case 'admin':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const AdminScreen()));
+      case 'provider':
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const ProviderApplyScreen()));
       case 'reports':
         Navigator.push(context,
             MaterialPageRoute(builder: (_) => const MyReportsScreen()));
@@ -56,6 +83,9 @@ class AccountButton extends StatelessWidget {
       );
     }
 
+    final app = context.watch<ProviderApplicationProvider>().application;
+    final providerItem = _providerMenuLabel(user, app);
+
     return PopupMenuButton<String>(
       tooltip: 'Akun',
       icon: CircleAvatar(
@@ -71,8 +101,7 @@ class AccountButton extends StatelessWidget {
             children: [
               Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
               Text(user.email, style: const TextStyle(fontSize: 12)),
-              Text(user.isAdmin ? 'Pengelola' : 'Warga',
-                  style: const TextStyle(fontSize: 12)),
+              Text(_roleLabel(user), style: const TextStyle(fontSize: 12)),
             ],
           ),
         ),
@@ -86,6 +115,8 @@ class AccountButton extends StatelessWidget {
         ],
         if (user.isAdmin)
           const PopupMenuItem(value: 'admin', child: Text('Panel pengelola')),
+        if (providerItem != null)
+          PopupMenuItem(value: 'provider', child: Text(providerItem)),
         const PopupMenuItem(value: 'reports', child: Text('Laporan saya')),
         const PopupMenuItem(value: 'delete', child: Text('Hapus akun')),
         const PopupMenuItem(value: 'logout', child: Text('Keluar')),

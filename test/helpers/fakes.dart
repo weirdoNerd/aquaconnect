@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:aquaconnect/models/provider_application.dart';
 import 'package:aquaconnect/services/location_service.dart';
+import 'package:aquaconnect/services/provider_service.dart';
 import 'package:aquaconnect/services/source_service.dart';
 
 class NoLocation implements LocationService {
@@ -43,6 +45,41 @@ class FakeSourceService implements SourceService {
   Stream<SourceBatch> watchPublished() => _tap('published');
   @override
   Stream<SourceBatch> watchOwned(String uid) => _tap('owned', uid);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
+class AppTap {
+  final String uid;
+  bool cancelled = false;
+  late final StreamController<ProviderApplication?> ctrl;
+
+  AppTap(this.uid) {
+    ctrl = StreamController<ProviderApplication?>(onCancel: () => cancelled = true);
+  }
+}
+
+class FakeProviderService implements ProviderService {
+  final taps = <AppTap>[];
+  final List<ProviderApplication> submitted = [];
+  Object? nextApplyError;
+
+  List<String> get active => [for (final t in taps) if (!t.cancelled) t.uid];
+
+  @override
+  Stream<ProviderApplication?> watchMyApplication(String uid) {
+    final t = AppTap(uid);
+    taps.add(t);
+    return t.ctrl.stream;
+  }
+
+  @override
+  Future<void> apply(ProviderApplication application) async {
+    final err = nextApplyError;
+    if (err != null) throw err;
+    submitted.add(application);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
