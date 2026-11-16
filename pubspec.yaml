@@ -15,7 +15,6 @@ dependencies:
   provider: ^6.1.2
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
-  url_launcher: ^6.3.1
   intl: any # versi dikunci oleh flutter_localizations
   shared_preferences: ^2.3.0
   firebase_core: ^4.0.0

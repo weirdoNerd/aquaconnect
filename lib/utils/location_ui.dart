@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 import '../providers/source_provider.dart';
 import '../services/location_service.dart';
 
+/// Pesan ramah berbahasa Indonesia untuk status kegagalan lokasi.
+String locationErrorText(LocationStatus status) => switch (status) {
+      LocationStatus.serviceOff =>
+        'Layanan lokasi (GPS) mati. Aktifkan di pengaturan perangkat.',
+      LocationStatus.denied =>
+        'Izin lokasi ditolak, jadi jarak tidak bisa dihitung.',
+      LocationStatus.deniedForever =>
+        'Izin lokasi diblokir. Aktifkan di pengaturan aplikasi.',
+      _ => 'Gagal mendapatkan lokasi. Pastikan sinyal GPS baik lalu coba lagi.',
+    };
+
 /// Menampilkan snackbar yang sesuai untuk kegagalan lokasi.
 /// Panggil hanya bila `context.mounted`.
 void showLocationError(
     BuildContext context, SourceProvider sp, LocationStatus status) {
-  final text = switch (status) {
-    LocationStatus.serviceOff =>
-      'Layanan lokasi (GPS) mati. Aktifkan di pengaturan perangkat.',
-    LocationStatus.denied =>
-      'Izin lokasi ditolak, jadi jarak tidak bisa dihitung.',
-    LocationStatus.deniedForever =>
-      'Izin lokasi diblokir. Aktifkan di pengaturan aplikasi.',
-    _ => 'Gagal mendapatkan lokasi. Pastikan sinyal GPS baik lalu coba lagi.',
-  };
+  final text = locationErrorText(status);
   final action = switch (status) {
     LocationStatus.serviceOff =>
       SnackBarAction(label: 'Pengaturan', onPressed: sp.openLocationSettings),

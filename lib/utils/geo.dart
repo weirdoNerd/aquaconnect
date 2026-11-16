@@ -15,7 +15,7 @@ double distanceMeters(double lat1, double lng1, double lat2, double lng2) {
   return 2 * r * math.asin(math.sqrt(a));
 }
 
-/// Membaca "-6.1480, 106.7370" (format salinan Google Maps). Desimal pakai titik.
+/// Membaca "-6.1480, 106.7370". Desimal pakai titik.
 LatLng? parseLatLng(String input) {
   final parts = input
       .replaceAll(';', ',')

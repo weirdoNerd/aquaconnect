@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config.dart';
 import '../models/water_source.dart';
 import '../providers/auth_provider.dart';
@@ -9,29 +8,13 @@ import '../providers/source_provider.dart';
 import '../widgets/availability_badge.dart';
 import 'login_screen.dart';
 import 'report_form_screen.dart';
+import 'source_route_screen.dart';
 
 /// Menerima id (bukan salinan objek) agar selalu menampilkan data terbaru
 /// saat admin memperbarui status ketika layar ini terbuka.
 class SourceDetailScreen extends StatelessWidget {
   final String sourceId;
   const SourceDetailScreen({super.key, required this.sourceId});
-
-  Future<void> _openNavigation(BuildContext context, WaterSource s) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final uri = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}');
-    var ok = false;
-    try {
-      ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('launchUrl gagal: $e'); // mis. PlatformException tanpa peramban
-      ok = false;
-    }
-    if (!ok) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Tidak dapat membuka aplikasi peta atau peramban.')));
-    }
-  }
 
   void _report(BuildContext context, WaterSource source) {
     final auth = context.read<AuthProvider>();
@@ -222,9 +205,16 @@ class SourceDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => _openNavigation(context, source),
-            icon: const Icon(Icons.directions),
-            label: const Text('Buka petunjuk arah'),
+            onPressed: source.isActive
+                ? () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SourceRouteScreen(sourceId: source.id),
+                      ),
+                    )
+                : null,
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Lihat di peta'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(

@@ -196,6 +196,7 @@ class SourceProvider extends ChangeNotifier {
   /// true bila data berasal dari cache lokal dan mungkin tidak terbaru.
   bool get fromCache => _fromCache;
 
+  LocationService get locationService => _location;
   String get query => _query;
   SourceType? get selectedType => _type;
   bool get showUnconfirmed => _showUnconfirmed;

@@ -94,7 +94,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 children: [
                   Text(
                     sel == null
-                        ? 'Ketuk peta untuk menandai lokasi, atau tempel koordinat dari Google Maps.'
+                        ? 'Ketuk peta untuk menandai lokasi, atau tempel koordinat.'
                         : 'Lat ${sel.latitude.toStringAsFixed(6)}, Lng ${sel.longitude.toStringAsFixed(6)}',
                     textAlign: TextAlign.center,
                   ),
@@ -150,7 +150,7 @@ class _CoordinateDialogState extends State<_CoordinateDialog> {
             const TextInputType.numberWithOptions(decimal: true, signed: true),
         decoration: InputDecoration(
           hintText: '-6.1480, 106.7370',
-          helperText: 'Tekan lama titik di Google Maps, lalu salin koordinatnya.',
+          helperText: 'Format: -6.1480, 106.7370',
           helperMaxLines: 2,
           errorText: _error,
         ),

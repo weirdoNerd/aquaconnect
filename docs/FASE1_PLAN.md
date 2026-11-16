@@ -87,6 +87,7 @@ Syarat untuk M1b dan M2 (belum dikerjakan):
 - Rute setelah diterima tidak boleh punya `firstPoint`/`lastPoint` di luar `points`; `parse` memvalidasinya.
 - Angka kuota dan klaim lisensi di dokumen ini belum diverifikasi; M0 yang membuktikannya.
 
-Keadaan: Fase 2 S1-S4, R1, dan R1.1 sudah ditulis (model, rules, tes rules, lapisan data, profil langsung;
-lihat `docs/FASE2_PLAN.md`). Hasil CI dan emulator belum ada, kecuali tes rules sampai R1.1 yang sudah
-dilaporkan lulus di emulator. Fase 1 masih menunggu M0 (fixture ORS): M1b dst. belum boleh dikerjakan.
+Keadaan: Fase 2 S1-S6, S8-S9, R1, R1.1, D1 sudah dikerjakan (lihat `docs/FASE2_PLAN.md`).
+Fase 1: **P-lite selesai sebagian** (`SourceRouteScreen` peta garis lurus ringan + jarak & arah kompas,
+`url_launcher` & referensi Google Maps dihapus dari `lib/`, tes widget `test/source_route_test.dart`,
+`flutter analyze` & `flutter test` lulus); **M1b–M4 belum** (masih menunggu fixture M0 untuk layanan rute penuh).
