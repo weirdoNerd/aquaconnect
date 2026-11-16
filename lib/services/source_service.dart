@@ -149,4 +149,37 @@ abstract class SourceService {
   /// Menangguhkan semua sumber milik [uid] yang published atau pending, per
   /// potongan [kWriteChunk]. Mengembalikan jumlah yang ditangguhkan.
   Future<int> suspendAllOwned(String uid);
+
+  /// Menghitung dokumen `water_sources` lama yang belum memiliki `isActive`
+  /// atau `listingStatus` (untuk pratinjau sebelum migrasi).
+  Future<int> countLegacySources();
+
+  /// Mengisi `isActive` (bila kosong) dan `listingStatus` (`published` bila
+  /// `isActive`, selain itu `closed`) pada dokumen lama dalam potongan
+  /// [kWriteChunk]. Idempoten: dokumen yang sudah lengkap dilewati.
+  Future<int> migrateLegacySources();
+}
+
+/// Menghitung pembaruan minimal agar dokumen sumber lama memenuhi skema Fase 2
+/// (`isActive` dan `listingStatus`). Mengembalikan `null` bila sudah lengkap
+/// (idempoten).
+Map<String, dynamic>? legacyMigrationPatch(Map<String, dynamic> data) {
+  final rawActive = data['isActive'];
+  final hasBoolActive = rawActive is bool;
+  final existingListing =
+      byNameOrNull(ListingStatus.values, data['listingStatus']);
+  if (hasBoolActive && existingListing != null) return null;
+
+  final active = hasBoolActive
+      ? rawActive
+      : (existingListing != null
+          ? existingListing == ListingStatus.published
+          : true);
+  final listing = existingListing ??
+      (active ? ListingStatus.published : ListingStatus.closed);
+
+  return <String, dynamic>{
+    if (!hasBoolActive) 'isActive': active,
+    if (existingListing == null) 'listingStatus': listing.name,
+  };
 }

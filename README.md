@@ -20,12 +20,16 @@ menyamakan `kAppPackage` di `lib/config.dart`. **Setelah itu commit folder
 `android/`** agar anggota lain cukup `git clone` lalu `flutter run`.
 Ganti `id.ac.kampus` dengan ID milik tim (ID berawalan `com.example` ditolak Google Play).
 
-Akun demo (mode tiruan, debug saja):
-`admin@aquaconnect.test / admin123` dan `warga@aquaconnect.test / warga123`.
+Akun demo (mode tiruan, debug saja — lihat juga `docs/DEMO.md`):
+- Admin: `admin@aquaconnect.test / admin123`
+- Warga: `warga@aquaconnect.test / warga123`
+- Penyedia aktif: `penyedia@aquaconnect.test / penyedia123`
+- Calon penyedia (`pending`): `calon@aquaconnect.test / calon123`
+
 Di emulator, atur lokasi ke `-6.1480, 106.7370` (⋯ > Location) agar urutan "Terdekat" masuk akal.
 
 ## Memakai Firebase
-Ikuti `SETUP_FIREBASE.md`, lalu `flutter run --dart-define=USE_FIREBASE=true`.
+Ikuti `SETUP_FIREBASE.md` (dan `docs/DEPLOY_FASE2.md` untuk deploy/migrasi Fase 2), lalu `flutter run --dart-define=USE_FIREBASE=true`.
 Build rilis (`flutter build apk --release`) otomatis memakai Firebase dan akan
 gagal dengan pesan jelas bila konfigurasinya belum lengkap.
 
@@ -59,7 +63,10 @@ Setiap field baru wajib diubah di EMPAT tempat sekaligus: model
 Status "tersedia" berarti sumber air dilaporkan ada, bukan jaminan air aman diminum.
 Data bertanda `[SIMULASI]` hanya untuk demo.
 
-## Kebijakan Privasi Singkat (Penyedia & Hapus Akun)
-- Data pengajuan penyedia (nama usaha/komunitas, nomor telepon kontak, deskripsi) hanya terlihat oleh admin untuk verifikasi dan peninjauan.
-- Bila penyedia aktif menghapus akun, seluruh sumber miliknya ditutup terlebih dahulu lalu pengajuan, profil, dan akun masuk dihapus.
-- Bila kemitraan penyedia telah diputus oleh admin (`terminated`), hanya akun masuk (autentikasi) yang dapat dihapus oleh pemilik akun; catatan pemutusan pada profil dan pengajuan tetap disimpan untuk mencegah penyalahgunaan atau pendaftaran ulang.
+## Kebijakan Privasi (Penyedia & Hapus Akun)
+- **Nomor telepon kontak & deskripsi pengajuan penyedia** hanya terlihat oleh admin untuk keperluan verifikasi kemitraan dan tindak lanjut operasional (tidak ditampilkan ke warga/tamu).
+- **Nama usaha/komunitas** pada pengajuan yang disetujui dipakai sebagai `ownerName` pada sumber air milik penyedia yang tayang.
+- **Hapus akun (`Hapus akun` di menu akun):**
+  - Pengguna biasa: pengajuan (bila ada) dan dokumen profil `users/{uid}` dihapus, lalu akun autentikasi dihapus permanen; riwayat laporan tetap tersimpan tanpa identitas yang dapat melacak akun setelah profil dihapus.
+  - Penyedia aktif (`active`): seluruh sumber air miliknya yang masih `published`/`pending`/`rejected` ditutup permanen terlebih dahulu (`akun dihapus`) sebelum pengajuan, profil, dan akun autentikasi dihapus. Jika penutupan sumber gagal sebagian, penghapusan akun dibatalkan agar tidak ada sumber aktif yatim dan pengguna dapat mengulang.
+- **Catatan akun terputus (`terminated`):** apabila kemitraan penyedia diputus oleh admin, penghapusan dokumen `users/{uid}` dan `provider_applications/{uid}` dilarang oleh Security Rules. Menu **Hapus akun** hanya menghapus akun masuk (Firebase Auth), sementara catatan pemutusan dan riwayat pengajuan tetap disimpan untuk mencegah pendaftaran ulang atau penyalahgunaan.

@@ -369,6 +369,37 @@ class SourceProvider extends ChangeNotifier {
   /// Dipanggil hanya dari panel admin (mode debug + Firebase).
   Future<int> seedDemoData(List<WaterSource> data) => _service.seed(data);
 
+  /// Pratinjau jumlah dokumen sumber air lama yang perlu diperbaiki.
+  Future<({int? count, String? error})> previewLegacyMigration() async {
+    try {
+      final count = await _service.countLegacySources();
+      return (count: count, error: null);
+    } on SourceException catch (e) {
+      return (count: null, error: e.message);
+    } catch (e) {
+      debugPrint('previewLegacyMigration: $e');
+      return (count: null, error: 'Gagal memeriksa data lama. Coba lagi.');
+    }
+  }
+
+  /// Menjalankan perbaikan data lama (idempoten, potongan 8 dokumen).
+  Future<({int? done, String? error})> runLegacyMigration() async {
+    try {
+      final done = await _service.migrateLegacySources();
+      return (done: done, error: null);
+    } on SourceBatchException catch (e) {
+      return (
+        done: null,
+        error: '${e.message} ${e.done} diperbarui, ${e.remaining} tersisa.',
+      );
+    } on SourceException catch (e) {
+      return (done: null, error: e.message);
+    } catch (e) {
+      debugPrint('runLegacyMigration: $e');
+      return (done: null, error: 'Gagal memperbaiki data lama. Coba lagi.');
+    }
+  }
+
   @override
   void dispose() {
     _freshnessTimer?.cancel();

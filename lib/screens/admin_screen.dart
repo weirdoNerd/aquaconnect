@@ -188,6 +188,65 @@ class _SourcesTab extends StatefulWidget {
 
 class _SourcesTabState extends State<_SourcesTab> {
   bool _onlyPending = false;
+  bool _migrating = false;
+
+  Future<void> _migrateLegacy() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final sp = context.read<SourceProvider>();
+    setState(() => _migrating = true);
+
+    final preview = await sp.previewLegacyMigration();
+    if (!mounted) return;
+    setState(() => _migrating = false);
+    if (preview.error != null) {
+      messenger.clearSnackBars();
+      messenger.showSnackBar(SnackBar(content: Text(preview.error!)));
+      return;
+    }
+
+    final count = preview.count ?? 0;
+    if (count == 0) {
+      messenger.clearSnackBars();
+      messenger.showSnackBar(const SnackBar(
+        content: Text(
+            'Semua data sumber air sudah sesuai (0 dokumen perlu diperbarui).'),
+      ));
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Perbaiki data lama?'),
+        content: Text(
+          'Ditemukan $count dokumen sumber air lama yang belum memiliki '
+          'isActive atau listingStatus. Pembaruan dijalankan per potongan 8 '
+          'dokumen dan aman diulang bila terputus.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Perbaiki ($count)'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+
+    setState(() => _migrating = true);
+    final res = await sp.runLegacyMigration();
+    if (!mounted) return;
+    setState(() => _migrating = false);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(SnackBar(
+      content:
+          Text(res.error ?? '${res.done ?? 0} dokumen lama berhasil diperbarui.'),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +266,17 @@ class _SourcesTabState extends State<_SourcesTab> {
         onPressed: () => _open(context, null),
         icon: const Icon(Icons.add_location_alt_outlined),
         label: const Text('Tambah sumber air'),
+      ),
+      OutlinedButton.icon(
+        onPressed: _migrating ? null : _migrateLegacy,
+        icon: _migrating
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.build_outlined),
+        label: const Text('Perbaiki data lama'),
       ),
       if (showSeed)
         OutlinedButton.icon(

@@ -15,6 +15,7 @@ import 'dummy_sources.dart';
 /// Jalur admin tidak dibatasi agar alur admin mode tiruan yang ada tetap jalan.
 class MockSourceService implements SourceService {
   final List<WaterSource> _list = List.of(dummySources);
+  final Map<String, Map<String, dynamic>> _legacyRaw = {};
   final _ctrl = StreamController<SourceBatch>.broadcast();
   String? _actingUid;
   int _seq = 0;
@@ -24,6 +25,13 @@ class MockSourceService implements SourceService {
 
   /// Bila diisi, batch ke-(N+1) dan seterusnya gagal (meniru kegagalan sebagian).
   int? failAfterBatches;
+
+  /// Menambahkan dokumen mentah lama untuk menguji migrasi & pratinjau S11.
+  void seedLegacyRaw(String id, Map<String, dynamic> data) =>
+      _legacyRaw[id] = Map<String, dynamic>.from(data);
+
+  /// Membaca dokumen mentah lama (untuk verifikasi tes S11).
+  Map<String, dynamic>? legacyRawOf(String id) => _legacyRaw[id];
 
   /// Atur siapa yang "login" untuk operasi penyedia. Null = belum login.
   void actAs(String? uid) => _actingUid = uid;
@@ -367,6 +375,31 @@ class MockSourceService implements SourceService {
       final i = _list.indexWhere((s) => s.id == id);
       _list[i] = _patch(_list[i],
           listingStatus: ListingStatus.suspended, updatedAt: DateTime.now());
+    });
+  }
+
+  @override
+  Future<int> countLegacySources() async {
+    var count = 0;
+    for (final raw in _legacyRaw.values) {
+      if (legacyMigrationPatch(raw) != null) count++;
+    }
+    return count;
+  }
+
+  @override
+  Future<int> migrateLegacySources() async {
+    final patches = <String, Map<String, dynamic>>{};
+    _legacyRaw.forEach((id, raw) {
+      final p = legacyMigrationPatch(raw);
+      if (p != null) patches[id] = p;
+    });
+    if (patches.isEmpty) return 0;
+    return _chunked(patches.keys.toList(), (id) {
+      final patch = patches[id];
+      if (patch != null && _legacyRaw.containsKey(id)) {
+        _legacyRaw[id] = {..._legacyRaw[id]!, ...patch};
+      }
     });
   }
 }

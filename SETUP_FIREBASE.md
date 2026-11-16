@@ -19,10 +19,11 @@ Perintah ini menimpa `lib/firebase_options.dart` dan menambah
 
 ## 3. Terbitkan Rules dan indeks
     firebase use <id-proyek>
-    firebase deploy --only firestore
+    firebase deploy --only firestore:rules,firestore:indexes
 
 Ini menerbitkan `firestore.rules` dan `firestore.indexes.json`. Tunggu indeks
 berstatus *Enabled* di Console (beberapa menit) sebelum membuka panel admin.
+Untuk deploy dan migrasi **Fase 2**, ikuti urutan lengkap di `docs/DEPLOY_FASE2.md`.
 
 ## 4. Jalankan dengan Firebase
     flutter run --dart-define=USE_FIREBASE=true
@@ -55,10 +56,20 @@ email asli, matikan KEDUANYA sekaligus, lalu terbitkan ulang rules.
 4. Uji rules dengan `rules_test/` (tamu, warga, admin) sebelum setiap penerbitan.
 
 ## Migrasi dari versi sebelumnya
+- **Fase 2 (penyedia & siklus hidup sumber):** ikuti panduan langkah demi langkah di
+  `docs/DEPLOY_FASE2.md` (disarankan membuat proyek demo/staging baru, deploy
+  rules + indeks bersamaan dengan rilis klien baru, lalu jalankan tombol admin
+  **Perbaiki data lama** untuk mengisi `isActive` dan `listingStatus` pada dokumen lama).
 - Sumber air lama dengan `intendedUse` berisi "Dugaan masalah kualitas...": set
   `qualityFlag: true` dan isi `intendedUse` dengan nilai wajar (edit di Console atau form admin).
 - Sumber air lama belum punya `verifiedAt`: tampil "Status belum pernah dikonfirmasi"
   sampai admin mengonfirmasi lewat form ("Konfirmasi status sekarang").
 - Laporan lama yang masih `pending` tidak punya dokumen `report_locks`; tinjau atau
   tolak semuanya sebelum rilis. Field `sourceName` pada laporan lama diabaikan.
-- `reportType` baru `backAvailable` hanya dikenali versi aplikasi terbaru.
+- `reportType` baru (`backAvailable`, `noLongerOperating`) hanya dikenali versi aplikasi terbaru.
+
+## Kebijakan Privasi & Pengelolaan Data Penyedia
+- **Telepon kontak penyedia** (`provider_applications/{uid}.contactPhone`) dan **deskripsi** hanya dapat dibaca oleh pemohon dan admin pengelola; warga maupun tamu tidak memiliki akses baca.
+- **Nama usaha/komunitas** (`organizationName`) dipakai sebagai `ownerName` pada sumber air milik penyedia dan dikunci agar sama dengan pengajuan yang disetujui admin.
+- **Hapus akun:** pengguna biasa menghapus pengajuan (bila ada), profil `users/{uid}`, dan akun Auth; penyedia aktif menutup seluruh sumbernya terlebih dahulu (`akun dihapus`) sebelum menghapus pengajuan, profil, dan akun Auth.
+- **Catatan akun terputus (`terminated`):** Security Rules melarang penyedia yang kemitraannya diputus admin untuk menghapus `users/{uid}` dan `provider_applications/{uid}`. Saat memilih **Hapus akun**, hanya akun Auth yang dihapus; catatan pemutusan tetap tersimpan di Firestore agar akun terputus tidak dapat mendaftar ulang dengan jejak bersih.

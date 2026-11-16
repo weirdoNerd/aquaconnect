@@ -265,6 +265,31 @@ class FirestoreSourceService implements SourceService {
                 }));
       });
 
+  @override
+  Future<int> countLegacySources() => _guard(() async {
+        final snap = await _col.get();
+        var count = 0;
+        for (final d in snap.docs) {
+          if (legacyMigrationPatch(d.data()) != null) count++;
+        }
+        return count;
+      });
+
+  @override
+  Future<int> migrateLegacySources() => _guard(() async {
+        final snap = await _col.get();
+        final patches = <String, Map<String, dynamic>>{};
+        for (final d in snap.docs) {
+          final p = legacyMigrationPatch(d.data());
+          if (p != null) patches[d.id] = p;
+        }
+        if (patches.isEmpty) return 0;
+        return _chunked(
+          patches.keys.toList(),
+          (b, ref) => b.update(ref, patches[ref.id]!),
+        );
+      });
+
   // ---------------- pembantu ----------------
 
   Future<List<String>> _idsOwnedWith(String uid, Set<ListingStatus> allowed) async {
